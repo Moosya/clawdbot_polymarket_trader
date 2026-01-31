@@ -1,11 +1,13 @@
+# Only define providers here. Nixpacks will handle the heavy lifting.
 providers = ["node", "python"]
 
-[phases.setup]
- nixPkgs = ["nodejs", "python3"]
-
 [phases.build]
- # This is the magic line that creates the 'dist' folder
- cmds = ["npm install", "npm run build"]
+ # Combine both install steps here to ensure they happen in the right order
+cmds = [
+  "npm install",
+  "npm run build",
+  "python -m venv /opt/venv && . /opt/venv/bin/activate && pip install -r requirements.txt"
+]
 
 [start]
- cmd = "node dist/index.js gateway start"
+cmd = "node dist/index.js gateway start"
