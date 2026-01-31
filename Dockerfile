@@ -12,6 +12,10 @@ RUN python3 -m venv /app/venv && \
     . /app/venv/bin/activate && \
     pip install -r requirements.txt
 
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
+       apt-get install -y nodejs
+
 # Install Node.js dependencies
 RUN npm install --include=dev
 
