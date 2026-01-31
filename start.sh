@@ -2,5 +2,5 @@
 
 # start.sh
 
-# Start the Flask application
-python3 app.py
+# Start the Flask application with Gunicorn
+gunicorn -b 0.0.0.0:8000 app:app
