@@ -1,6 +1,1 @@
-{ 
-  "scripts": { 
-    "build": "tsc", 
-    "start": "node dist/index.js" 
-  } 
-}
+{ "name": "clawdbot-polymarket-trader", "version": "1.0.0", "description": "Clawdbot trader on Railway", "main": "dist/index.js", "scripts": { "build": "tsc", "start": "node dist/index.js gateway start" }, "dependencies": { "typescript": "^5.0.0", "@types/node": "^20.0.0" }, "devDependencies": { "typescript": "^5.0.0" }}
