@@ -1,0 +1,6 @@
+- **Age:** 55
+- **Interests:** Staying fit/healthy, peptides, and supplements to stay sharp.
+- **Work:** Engineer at a major bank.
+- **Hobbies:** Keeping up with AI, enjoying podcasts like All-In with Chamath, David Sacks, Dave Frieberg, and Jason; also likes Moonshots for positive and informative content.
+- **Business:** Interested in side businesses but struggles with time due to long work hours; seeks help with ideas and execution.
+- **Markets:** Enjoys learning about the markets but is a very infrequent trader.
