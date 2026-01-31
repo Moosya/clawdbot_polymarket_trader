@@ -1,11 +1,11 @@
-# nixpacks.toml
-# This forces Railway to install BOTH Node and Python
 providers = ["node", "python"]
 
 [phases.setup]
-# Explicitly install the binaries so they are available in the shell
-nixPkgs = ["nodejs", "python3"]
+ nixPkgs = ["nodejs", "python3"]
+
+[phases.build]
+ # This is the magic line that creates the 'dist' folder
+ cmds = ["npm install", "npm run build"]
 
 [start]
-# Your specific Clawdbot start command
-cmd = "node dist/index.js gateway start"
+ cmd = "node dist/index.js gateway start"
