@@ -17,7 +17,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
        apt-get install -y nodejs
 
 # Install Node.js dependencies
-RUN RUN npm install && npm run build
+RUN npm install && npm run build
 
 # Build TypeScript
 RUN npx -p typescript tsc --project .
