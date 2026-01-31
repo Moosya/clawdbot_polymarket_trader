@@ -1,13 +1,13 @@
 providers = ["node", "python"]
 
 [phases.install]
- # Force npm to install EVERYTHING including devDependencies (like typescript)
-cms = ["npm install --include=dev"]
+ # We use --include=dev to ensure the 'typescript' package is actually installed
+cmds = ["npm install --include=dev"]
 
 [phases.build]
- # Use 'npx' to ensure it finds the local 'tsc' binary
+ # Use npx -p typescript tsc to force the correct package usage
 cmds = [
-  "npx tsc",
+  "npx -p typescript tsc",
   "python -m venv /opt/venv && . /opt/venv/bin/activate && pip install -r requirements.txt"
 ]
 
