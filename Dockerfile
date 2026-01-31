@@ -4,8 +4,8 @@ WORKDIR /app/
 
 COPY . /app/
 
-# Set up Python virtual environment in a different location
-RUN python -m venv /app/venv && \
+# Set up Python virtual environment
+RUN python3 -m venv /app/venv && \
     . /app/venv/bin/activate && \
     pip install -r requirements.txt
 
