@@ -1,11 +1,13 @@
-# Only define providers here. Nixpacks will handle the heavy lifting.
 providers = ["node", "python"]
 
+[phases.install]
+ # Force npm to install EVERYTHING including devDependencies (like typescript)
+cms = ["npm install --include=dev"]
+
 [phases.build]
- # Combine both install steps here to ensure they happen in the right order
+ # Use 'npx' to ensure it finds the local 'tsc' binary
 cmds = [
-  "npm install",
-  "npm run build",
+  "npx tsc",
   "python -m venv /opt/venv && . /opt/venv/bin/activate && pip install -r requirements.txt"
 ]
 
