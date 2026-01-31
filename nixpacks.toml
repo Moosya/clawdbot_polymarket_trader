@@ -5,9 +5,9 @@ providers = ["node", "python"]
 cmds = ["npm install --include=dev"]
 
 [phases.build]
- # Use npx -p typescript tsc to force the correct package usage
+ # We add '--project .' to tell tsc to use your tsconfig.json in the current folder
 cmds = [
-  "npx -p typescript tsc",
+  "npx -p typescript tsc --project .",
   "python -m venv /opt/venv && . /opt/venv/bin/activate && pip install -r requirements.txt"
 ]
 
