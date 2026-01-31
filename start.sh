@@ -3,4 +3,4 @@
 # start.sh
 
 # Start the Flask application
-python app.py
+python3 app.py
