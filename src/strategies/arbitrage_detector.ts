@@ -48,10 +48,21 @@ export class ArbitrageDetector {
       }
 
       const [token1, token2] = tokens;
+      const conditionId = market.condition_id;
 
-      // Get current prices
-      const price1 = await this.client.getTokenPrice(token1.token_id);
-      const price2 = await this.client.getTokenPrice(token2.token_id);
+      // Get current prices (pass condition_id for fallback)
+      const price1 = await this.client.getTokenPrice(token1.token_id, conditionId);
+      const price2 = await this.client.getTokenPrice(token2.token_id, conditionId);
+
+      // Skip if we couldn't get prices for both tokens
+      if (price1 === null || price2 === null) {
+        if (this.debugMode) {
+          console.log(`⚠️  Could not get prices for: ${market.question.substring(0, 50)}...`);
+          console.log(`   ${token1.outcome}: ${price1 === null ? 'NO PRICE' : price1}`);
+          console.log(`   ${token2.outcome}: ${price2 === null ? 'NO PRICE' : price2}`);
+        }
+        return { opportunity: null, check: null };
+      }
 
       // Calculate combined cost
       const combinedPrice = price1 + price2;
@@ -114,14 +125,14 @@ export class ArbitrageDetector {
   /**
    * Scan all markets for arbitrage opportunities
    */
-  async scanAllMarkets(sampleSize?: number): Promise<{ opportunities: ArbitrageOpportunity[], closest: MarketCheck[] }> {
+  async scanAllMarkets(sampleSize?: number): Promise<{ opportunities: ArbitrageOpportunity[], closest: MarketCheck[], marketsChecked: number }> {
     try {
       console.log('Fetching active markets...');
       const allMarkets = await this.client.getMarkets();
       
       if (!Array.isArray(allMarkets)) {
         console.error('⚠️  Markets response is not an array:', typeof allMarkets);
-        return { opportunities: [], closest: [] };
+        return { opportunities: [], closest: [], marketsChecked: 0 };
       }
 
       // Filter: accepting_orders=true AND 2 tokens (that's all that matters)
@@ -143,7 +154,7 @@ export class ArbitrageDetector {
       const allChecks: MarketCheck[] = [];
 
       // Check markets in parallel (with some rate limiting)
-      const batchSize = 10;
+      const batchSize = 5; // Reduced batch size to avoid rate limiting
       for (let i = 0; i < marketsToCheck.length; i += batchSize) {
         const batch = marketsToCheck.slice(i, i + batchSize);
         const results = await Promise.all(
@@ -160,8 +171,8 @@ export class ArbitrageDetector {
           }
         });
 
-        // Small delay to avoid rate limiting
-        await this.sleep(100);
+        // Delay to avoid rate limiting
+        await this.sleep(500);
       }
 
       // Sort checks by combined price (lowest = closest to opportunity)
@@ -169,10 +180,10 @@ export class ArbitrageDetector {
         .sort((a, b) => a.combined_price - b.combined_price)
         .slice(0, 5);
 
-      return { opportunities, closest };
+      return { opportunities, closest, marketsChecked: allChecks.length };
     } catch (error) {
       console.error('Error scanning markets:', error);
-      return { opportunities: [], closest: [] };
+      return { opportunities: [], closest: [], marketsChecked: 0 };
     }
   }
 
@@ -196,7 +207,7 @@ export class ArbitrageDetector {
    */
   formatClosest(checks: MarketCheck[]): string {
     if (checks.length === 0) {
-      return 'No valid markets checked.';
+      return '⚠️  No markets with valid prices found.';
     }
 
     let output = '\n📊 Top 5 Closest to Arbitrage:\n';

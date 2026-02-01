@@ -23,14 +23,11 @@ async function main() {
   console.log('✅ Running in PAPER TRADING mode');
   
   // Debug mode: set to true to see detailed logging
-  const DEBUG_MODE = true;
-  const SAMPLE_SIZE = undefined; // Scan ALL tradeable markets (only ~13)
+  const DEBUG_MODE = false; // Turn off verbose debug for cleaner output
+  const SAMPLE_SIZE = undefined; // Scan ALL tradeable markets
   
-  if (DEBUG_MODE) {
-    console.log('🔍 DEBUG MODE ENABLED\n');
-    console.log('💡 Arbitrage = when Outcome1 + Outcome2 < $1.00\n');
-    console.log('📌 Only scanning markets with accepting_orders=true\n');
-  }
+  console.log('💡 Arbitrage = when Outcome1 + Outcome2 < $1.00\n');
+  console.log('📌 Using CLOB orderbook + Gamma API fallback for prices\n');
 
   // Initialize client
   const client = new PolymarketClient(apiKey, apiSecret, apiPassphrase);
@@ -38,8 +35,8 @@ async function main() {
   // Initialize arbitrage detector (minimum 0.5% profit)
   const detector = new ArbitrageDetector(client, 0.5, DEBUG_MODE);
 
-  // Main loop: scan for arbitrage every 30 seconds
-  const scanInterval = 30000; // 30 seconds
+  // Main loop: scan for arbitrage every 60 seconds
+  const scanInterval = 60000; // 60 seconds
   let scanCount = 0;
 
   console.log(`Starting arbitrage scanner (checking every ${scanInterval / 1000}s)...\n`);
@@ -52,12 +49,14 @@ async function main() {
       console.log(`[Scan #${scanCount}] ${new Date().toISOString()}`);
 
       // Scan markets
-      const { opportunities, closest } = await detector.scanAllMarkets(SAMPLE_SIZE);
+      const { opportunities, closest, marketsChecked } = await detector.scanAllMarkets(SAMPLE_SIZE);
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
+      console.log(`✅ Successfully priced ${marketsChecked} markets`);
+
       if (opportunities.length > 0) {
-        console.log(`\n✨ Found ${opportunities.length} arbitrage opportunities!\n`);
+        console.log(`\n🎉 Found ${opportunities.length} arbitrage opportunities!\n`);
 
         // Sort by profit percent (highest first)
         opportunities.sort((a, b) => b.profit_percent - a.profit_percent);
@@ -67,7 +66,7 @@ async function main() {
           console.log(detector.formatOpportunity(opp));
         });
       } else {
-        console.log(`\n❌ No arbitrage opportunities found (scan took ${duration}s)`);
+        console.log(`❌ No arbitrage opportunities found (scan took ${duration}s)`);
       }
 
       // Show closest markets (to prove we have real data)
@@ -79,8 +78,8 @@ async function main() {
       await sleep(scanInterval);
     } catch (error) {
       console.error('Error in main loop:', error);
-      console.log('Retrying in 30 seconds...\n');
-      await sleep(30000);
+      console.log('Retrying in 60 seconds...\n');
+      await sleep(60000);
     }
   }
 }
