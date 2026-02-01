@@ -20,13 +20,21 @@ async function main() {
   }
 
   console.log('✅ API credentials loaded');
-  console.log('✅ Running in PAPER TRADING mode\n');
+  console.log('✅ Running in PAPER TRADING mode');
+  
+  // Debug mode: set to true to see detailed logging for first few markets
+  const DEBUG_MODE = true;
+  const SAMPLE_SIZE = DEBUG_MODE ? 5 : undefined; // Only check 5 markets in debug mode
+  
+  if (DEBUG_MODE) {
+    console.log('🔍 DEBUG MODE ENABLED - checking first 5 markets only\n');
+  }
 
   // Initialize client
   const client = new PolymarketClient(apiKey, apiSecret, apiPassphrase);
 
   // Initialize arbitrage detector (minimum 0.5% profit)
-  const detector = new ArbitrageDetector(client, 0.5);
+  const detector = new ArbitrageDetector(client, 0.5, DEBUG_MODE);
 
   // Main loop: scan for arbitrage every 10 seconds
   const scanInterval = 10000; // 10 seconds
@@ -41,8 +49,8 @@ async function main() {
 
       console.log(`[Scan #${scanCount}] ${new Date().toISOString()}`);
 
-      // Scan all markets
-      const opportunities = await detector.scanAllMarkets();
+      // Scan markets (sample size for debugging)
+      const opportunities = await detector.scanAllMarkets(SAMPLE_SIZE);
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 

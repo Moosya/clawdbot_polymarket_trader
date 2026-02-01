@@ -4,10 +4,12 @@ import { ArbitrageOpportunity, Market } from '../types';
 export class ArbitrageDetector {
   private client: PolymarketClient;
   private minProfitPercent: number;
+  private debugMode: boolean;
 
-  constructor(client: PolymarketClient, minProfitPercent: number = 0.5) {
+  constructor(client: PolymarketClient, minProfitPercent: number = 0.5, debugMode: boolean = false) {
     this.client = client;
     this.minProfitPercent = minProfitPercent;
+    this.debugMode = debugMode;
   }
 
   /**
@@ -24,6 +26,9 @@ export class ArbitrageDetector {
       // Get tokens (Yes and No outcomes)
       const tokens = market.tokens;
       if (!tokens || tokens.length < 2) {
+        if (this.debugMode) {
+          console.log(`⚠️  Market ${market.id} has ${tokens?.length || 0} tokens`);
+        }
         return null;
       }
 
@@ -31,12 +36,20 @@ export class ArbitrageDetector {
       const noToken = tokens.find(t => t.outcome.toLowerCase() === 'no');
 
       if (!yesToken || !noToken) {
+        if (this.debugMode) {
+          console.log(`⚠️  Market ${market.id} missing YES/NO tokens:`, tokens.map(t => t.outcome));
+        }
         return null;
       }
 
       // Get current prices (ask prices - what we'd pay to buy)
       const yesPrice = await this.client.getTokenPrice(yesToken.token_id);
       const noPrice = await this.client.getTokenPrice(noToken.token_id);
+
+      if (this.debugMode) {
+        console.log(`Market: ${market.question.substring(0, 50)}...`);
+        console.log(`  YES: $${yesPrice.toFixed(4)} | NO: $${noPrice.toFixed(4)} | Combined: $${(yesPrice + noPrice).toFixed(4)}`);
+      }
 
       // Calculate combined cost
       const combinedPrice = yesPrice + noPrice;
@@ -63,7 +76,9 @@ export class ArbitrageDetector {
 
       return null;
     } catch (error) {
-      console.error(`Error checking market ${market.id}:`, error);
+      if (this.debugMode) {
+        console.error(`Error checking market ${market.id}:`, error);
+      }
       return null;
     }
   }
@@ -71,7 +86,7 @@ export class ArbitrageDetector {
   /**
    * Scan all markets for arbitrage opportunities
    */
-  async scanAllMarkets(): Promise<ArbitrageOpportunity[]> {
+  async scanAllMarkets(sampleSize?: number): Promise<ArbitrageOpportunity[]> {
     try {
       console.log('Fetching active markets...');
       const markets = await this.client.getMarkets();
@@ -81,14 +96,20 @@ export class ArbitrageDetector {
         return [];
       }
 
-      console.log(`Scanning ${markets.length} markets for arbitrage...`);
+      // If sample size specified, only check that many markets (for debugging)
+      const marketsToCheck = sampleSize ? markets.slice(0, sampleSize) : markets;
+      
+      console.log(`Scanning ${marketsToCheck.length} markets for arbitrage...`);
+      if (sampleSize && this.debugMode) {
+        console.log('🔍 DEBUG MODE: Showing first market details...\n');
+      }
       
       const opportunities: ArbitrageOpportunity[] = [];
 
       // Check markets in parallel (with some rate limiting)
       const batchSize = 10;
-      for (let i = 0; i < markets.length; i += batchSize) {
-        const batch = markets.slice(i, i + batchSize);
+      for (let i = 0; i < marketsToCheck.length; i += batchSize) {
+        const batch = marketsToCheck.slice(i, i + batchSize);
         const results = await Promise.all(
           batch.map(market => this.checkMarket(market))
         );
