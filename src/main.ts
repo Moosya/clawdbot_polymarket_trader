@@ -22,12 +22,12 @@ async function main() {
   console.log('✅ API credentials loaded');
   console.log('✅ Running in PAPER TRADING mode');
   
-  // Debug mode: set to true to see detailed logging
-  const DEBUG_MODE = false; // Turn off verbose debug for cleaner output
-  const SAMPLE_SIZE = undefined; // Scan ALL tradeable markets
+  // DEBUG MODE ON to see what's failing
+  const DEBUG_MODE = true;
+  const SAMPLE_SIZE = 3; // Check just 3 markets to see detailed errors
   
+  console.log('🔍 DEBUG MODE: Checking first 3 markets with detailed logging\n');
   console.log('💡 Arbitrage = when Outcome1 + Outcome2 < $1.00\n');
-  console.log('📌 Using CLOB orderbook + Gamma API fallback for prices\n');
 
   // Initialize client
   const client = new PolymarketClient(apiKey, apiSecret, apiPassphrase);
@@ -48,7 +48,7 @@ async function main() {
 
       console.log(`[Scan #${scanCount}] ${new Date().toISOString()}`);
 
-      // Scan markets
+      // Scan markets (sample size for debugging)
       const { opportunities, closest, marketsChecked } = await detector.scanAllMarkets(SAMPLE_SIZE);
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
