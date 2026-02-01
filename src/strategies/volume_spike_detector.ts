@@ -155,6 +155,21 @@ export class VolumeSpikeDetector {
           const percentIncrease = ((volume24hr - avgVolume) / avgVolume) * 100;
 
           if (spikeMultiplier >= this.minSpikeMultiplier) {
+            // Parse outcomePrices (may be JSON string or array)
+            let priceYes = 0;
+            let priceNo = 0;
+            if (market.outcomePrices) {
+              try {
+                const prices = typeof market.outcomePrices === 'string' 
+                  ? JSON.parse(market.outcomePrices)
+                  : market.outcomePrices;
+                priceYes = parseFloat(prices[0]) || 0;
+                priceNo = parseFloat(prices[1]) || 0;
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+
             spikes.push({
               marketId,
               question: market.question,
@@ -162,8 +177,8 @@ export class VolumeSpikeDetector {
               avgVolume,
               spikeMultiplier,
               percentIncrease,
-              priceYes: parseFloat(market.outcomePrices?.[0]) || 0,
-              priceNo: parseFloat(market.outcomePrices?.[1]) || 0,
+              priceYes,
+              priceNo,
               liquidity: parseFloat(market.liquidity) || 0,
               timestamp: Date.now(),
             });

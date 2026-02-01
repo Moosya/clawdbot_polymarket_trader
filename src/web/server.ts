@@ -277,6 +277,9 @@ app.get('/', (req, res) => {
         🔥 Volume Spikes
         <span class="badge orange" id="volume-badge">0</span>
       </div>
+      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
+        Markets with unusually high 24hr volume compared to 7-day average. High volume = new information entering market.
+      </div>
       <div id="volume-list"></div>
     </div>
 
@@ -295,14 +298,20 @@ app.get('/', (req, res) => {
         🐋 Whale Trades (>$1000)
         <span class="badge" style="background: #8b5cf6; color: white;" id="whale-badge">0</span>
       </div>
+      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
+        Large trades from the last 2 minutes. BUY (green) = bullish, SELL (red) = bearish. Multiple whales buying = strong signal.
+      </div>
       <div id="whale-list"></div>
     </div>
 
     <!-- Top Traders Section -->
     <div class="section">
       <div class="section-title">
-        💎 Top Profitable Traders
+        💎 Top Profitable Traders (Min 5 trades)
         <span class="badge" style="background: #10b981; color: white;" id="traders-badge">0</span>
+      </div>
+      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
+        Ranked by total P&L (profit/loss). ROI = profit efficiency. Win Rate = % of closed positions that were profitable. Green = profitable, Red = losing.
       </div>
       <div id="traders-list"></div>
     </div>
@@ -372,11 +381,11 @@ app.get('/', (req, res) => {
                 <tr>
                   <th>Market</th>
                   <th>24hr Vol</th>
-                  <th>Avg Vol</th>
+                  <th>Avg Vol (7d)</th>
                   <th>Spike</th>
-                  <th>Increase</th>
-                  <th>YES</th>
-                  <th>NO</th>
+                  <th>% Change</th>
+                  <th>YES Price</th>
+                  <th>NO Price</th>
                 </tr>
               </thead>
               <tbody>
