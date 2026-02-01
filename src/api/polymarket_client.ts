@@ -53,10 +53,34 @@ export class PolymarketClient {
   async getMarkets(): Promise<Market[]> {
     try {
       const response = await this.api.get('/markets');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching markets:', error);
-      throw error;
+      
+      // Handle different response structures
+      let markets = response.data;
+      
+      // If data is wrapped in a property, unwrap it
+      if (markets && typeof markets === 'object' && !Array.isArray(markets)) {
+        // Try common wrapper properties
+        if (Array.isArray(markets.data)) {
+          markets = markets.data;
+        } else if (Array.isArray(markets.markets)) {
+          markets = markets.markets;
+        }
+      }
+      
+      if (!Array.isArray(markets)) {
+        console.error('⚠️  Unexpected markets response structure:', typeof markets);
+        console.error('Response keys:', Object.keys(markets || {}));
+        return [];
+      }
+      
+      return markets;
+    } catch (error: any) {
+      if (error.response) {
+        console.error('API Error:', error.response.status, error.response.data);
+      } else {
+        console.error('Error fetching markets:', error.message);
+      }
+      return [];
     }
   }
 

@@ -76,6 +76,11 @@ export class ArbitrageDetector {
       console.log('Fetching active markets...');
       const markets = await this.client.getMarkets();
       
+      if (!Array.isArray(markets)) {
+        console.error('⚠️  Markets response is not an array:', typeof markets);
+        return [];
+      }
+
       console.log(`Scanning ${markets.length} markets for arbitrage...`);
       
       const opportunities: ArbitrageOpportunity[] = [];
