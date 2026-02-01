@@ -24,10 +24,11 @@ async function main() {
   
   // Debug mode: set to true to see detailed logging for first few markets
   const DEBUG_MODE = true;
-  const SAMPLE_SIZE = DEBUG_MODE ? 5 : undefined; // Only check 5 markets in debug mode
+  const SAMPLE_SIZE = DEBUG_MODE ? 10 : undefined; // Check 10 markets in debug mode
   
   if (DEBUG_MODE) {
-    console.log('🔍 DEBUG MODE ENABLED - checking first 5 markets only\n');
+    console.log('🔍 DEBUG MODE ENABLED - checking first 10 markets\n');
+    console.log('💡 Arbitrage = when YES + NO < $1.00 (guaranteed profit at settlement)\n');
   }
 
   // Initialize client
@@ -50,7 +51,7 @@ async function main() {
       console.log(`[Scan #${scanCount}] ${new Date().toISOString()}`);
 
       // Scan markets (sample size for debugging)
-      const opportunities = await detector.scanAllMarkets(SAMPLE_SIZE);
+      const { opportunities, closest } = await detector.scanAllMarkets(SAMPLE_SIZE);
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
@@ -65,8 +66,11 @@ async function main() {
           console.log(detector.formatOpportunity(opp));
         });
       } else {
-        console.log(`No arbitrage opportunities found (scan took ${duration}s)`);
+        console.log(`\n❌ No arbitrage opportunities found (scan took ${duration}s)`);
       }
+
+      // Always show closest markets (to prove we have real data)
+      console.log(detector.formatClosest(closest));
 
       console.log('\n' + '─'.repeat(80) + '\n');
 
