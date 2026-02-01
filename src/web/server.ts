@@ -116,7 +116,7 @@ app.get('/', (req, res) => {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
       background: #f8f9fa;
       color: #1a1a1a;
       padding: 12px;
@@ -217,7 +217,7 @@ app.get('/', (req, res) => {
       color: #1a1a1a;
       max-width: 500px;
     }
-    .price { font-family: 'SF Mono', monospace; font-weight: 600; }
+    .price { font-weight: 600; }
     .profit { color: #059669; font-weight: 700; }
     .spike { color: #d97706; font-weight: 700; }
     .age { color: #6b7280; font-size: 0.85em; }
