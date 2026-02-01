@@ -30,10 +30,10 @@ export class ArbitrageDetector {
    */
   async checkMarket(market: Market): Promise<{ opportunity: ArbitrageOpportunity | null, check: MarketCheck | null }> {
     try {
-      // Filter: must be active, not closed, and accepting orders
-      if (!market.active || market.closed || !market.accepting_orders) {
+      // Filter: must be accepting orders (that's what really matters)
+      if (!market.accepting_orders) {
         if (this.debugMode) {
-          console.log(`⏭️  Skipping: ${market.question.substring(0, 50)}... (active=${market.active}, closed=${market.closed}, accepting=${market.accepting_orders})`);
+          console.log(`⏭️  Skipping: ${market.question.substring(0, 50)}... (not accepting orders)`);
         }
         return { opportunity: null, check: null };
       }
@@ -42,7 +42,7 @@ export class ArbitrageDetector {
       const tokens = market.tokens;
       if (!tokens || tokens.length !== 2) {
         if (this.debugMode) {
-          console.log(`⚠️  Market ${market.id} has ${tokens?.length || 0} tokens (need 2)`);
+          console.log(`⚠️  Market has ${tokens?.length || 0} tokens (need 2)`);
         }
         return { opportunity: null, check: null };
       }
@@ -124,9 +124,9 @@ export class ArbitrageDetector {
         return { opportunities: [], closest: [] };
       }
 
-      // Filter for tradeable markets only
+      // Filter: accepting_orders=true AND 2 tokens (that's all that matters)
       const tradeableMarkets = allMarkets.filter(m => 
-        m.active && !m.closed && m.accepting_orders && m.tokens?.length === 2
+        m.accepting_orders && m.tokens?.length === 2
       );
 
       console.log(`Found ${tradeableMarkets.length} tradeable markets (out of ${allMarkets.length} total)`);

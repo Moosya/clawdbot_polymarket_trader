@@ -20,45 +20,73 @@ async function main() {
   }
 
   console.log('✅ API credentials loaded');
-  console.log('✅ Running in PAPER TRADING mode\n');
+  console.log('✅ Running in PAPER TRADING mode');
+  
+  // Debug mode: set to true to see detailed logging
+  const DEBUG_MODE = true;
+  const SAMPLE_SIZE = undefined; // Scan ALL tradeable markets (only ~13)
+  
+  if (DEBUG_MODE) {
+    console.log('🔍 DEBUG MODE ENABLED\n');
+    console.log('💡 Arbitrage = when Outcome1 + Outcome2 < $1.00\n');
+    console.log('📌 Only scanning markets with accepting_orders=true\n');
+  }
 
   // Initialize client
   const client = new PolymarketClient(apiKey, apiSecret, apiPassphrase);
 
-  // First, debug: check what's filtering out markets
-  console.log('🔍 DEBUG: Analyzing market filters...\n');
-  const allMarkets = await client.getMarkets();
-  
-  console.log(`📦 Total markets: ${allMarkets.length}`);
-  
-  const activeCount = allMarkets.filter(m => m.active).length;
-  const notClosedCount = allMarkets.filter(m => !m.closed).length;
-  const acceptingOrdersCount = allMarkets.filter(m => m.accepting_orders).length;
-  const has2TokensCount = allMarkets.filter(m => m.tokens?.length === 2).length;
-  
-  console.log(`  ✅ active=true: ${activeCount}`);
-  console.log(`  ✅ closed=false: ${notClosedCount}`);
-  console.log(`  ✅ accepting_orders=true: ${acceptingOrdersCount}`);
-  console.log(`  ✅ has 2 tokens: ${has2TokensCount}`);
-  
-  const activeNotClosed = allMarkets.filter(m => m.active && !m.closed).length;
-  const activeNotClosedAccepting = allMarkets.filter(m => m.active && !m.closed && m.accepting_orders).length;
-  const fullFilter = allMarkets.filter(m => m.active && !m.closed && m.accepting_orders && m.tokens?.length === 2).length;
-  
-  console.log(`\n🔗 Combined filters:`);
-  console.log(`  active && !closed: ${activeNotClosed}`);
-  console.log(`  active && !closed && accepting_orders: ${activeNotClosedAccepting}`);
-  console.log(`  active && !closed && accepting_orders && 2 tokens: ${fullFilter}`);
-  
-  // Show a few examples of markets that fail the filter
-  console.log(`\n📋 Sample of first 3 markets:\n`);
-  allMarkets.slice(0, 3).forEach((m, idx) => {
-    console.log(`${idx + 1}. ${m.question.substring(0, 60)}...`);
-    console.log(`   active=${m.active}, closed=${m.closed}, accepting_orders=${m.accepting_orders}, tokens=${m.tokens?.length}`);
-  });
-  
-  console.log('\n' + '─'.repeat(80));
-  console.log('Stopping after analysis. Check the filters!\n');
+  // Initialize arbitrage detector (minimum 0.5% profit)
+  const detector = new ArbitrageDetector(client, 0.5, DEBUG_MODE);
+
+  // Main loop: scan for arbitrage every 30 seconds
+  const scanInterval = 30000; // 30 seconds
+  let scanCount = 0;
+
+  console.log(`Starting arbitrage scanner (checking every ${scanInterval / 1000}s)...\n`);
+
+  while (true) {
+    try {
+      scanCount++;
+      const startTime = Date.now();
+
+      console.log(`[Scan #${scanCount}] ${new Date().toISOString()}`);
+
+      // Scan markets
+      const { opportunities, closest } = await detector.scanAllMarkets(SAMPLE_SIZE);
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+      if (opportunities.length > 0) {
+        console.log(`\n✨ Found ${opportunities.length} arbitrage opportunities!\n`);
+
+        // Sort by profit percent (highest first)
+        opportunities.sort((a, b) => b.profit_percent - a.profit_percent);
+
+        // Print all opportunities
+        opportunities.forEach(opp => {
+          console.log(detector.formatOpportunity(opp));
+        });
+      } else {
+        console.log(`\n❌ No arbitrage opportunities found (scan took ${duration}s)`);
+      }
+
+      // Show closest markets (to prove we have real data)
+      console.log(detector.formatClosest(closest));
+
+      console.log('\n' + '─'.repeat(80) + '\n');
+
+      // Wait before next scan
+      await sleep(scanInterval);
+    } catch (error) {
+      console.error('Error in main loop:', error);
+      console.log('Retrying in 30 seconds...\n');
+      await sleep(30000);
+    }
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // Handle graceful shutdown
