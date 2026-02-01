@@ -60,7 +60,7 @@ export class ArbitrageDetector {
 
       // Create check record
       const check: MarketCheck = {
-        market_id: market.condition_id || market.question_id,
+        market_id: market.condition_id || market.question_id || market.id || "unknown",
         question: market.question,
         outcome1: token1.outcome,
         outcome2: token2.outcome,
@@ -90,7 +90,7 @@ export class ArbitrageDetector {
       // Check if arbitrage exists AND meets minimum threshold
       if (combinedPrice < 1.0 && profitPercent >= this.minProfitPercent) {
         const opportunity: ArbitrageOpportunity = {
-          market_id: market.condition_id || market.question_id,
+          market_id: market.condition_id || market.question_id || market.id || "unknown",
           question: market.question,
           yes_price: price1,
           no_price: price2,
