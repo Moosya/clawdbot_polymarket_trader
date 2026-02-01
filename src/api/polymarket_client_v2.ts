@@ -1,4 +1,4 @@
-import { ClobClient } from '@polymarket/clob-client';
+import { ClobClient, Side } from '@polymarket/clob-client';
 import { ethers } from 'ethers';
 import { Market, OrderBook } from '../types';
 
@@ -27,8 +27,9 @@ export class PolymarketClientV2 {
    */
   async getMarkets(): Promise<Market[]> {
     try {
-      // Get markets from the official client
-      const markets = await this.client.getMarkets();
+      // Get markets from the official client (returns PaginationPayload)
+      const response = await this.client.getMarkets();
+      const markets = (response as any).data || response;
       
       // Transform to our Market interface
       return markets.map((m: any) => ({
@@ -126,12 +127,15 @@ export class PolymarketClientV2 {
     side: 'BUY' | 'SELL';
   }): Promise<any> {
     try {
+      // Convert string to Side enum
+      const side = params.side === 'BUY' ? Side.BUY : Side.SELL;
+      
       // Use official client's order creation
       const order = await this.client.createOrder({
         tokenID: params.tokenId,
         price: params.price,
         size: params.size,
-        side: params.side,
+        side: side,
         // Additional params will be needed for real orders
       });
 

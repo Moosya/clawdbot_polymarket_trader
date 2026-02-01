@@ -83,7 +83,7 @@ export class TrendMarketMatcher {
     const signals: TradingSignal[] = [];
 
     for (const trend of relevantTrends.slice(0, 5)) { // Top 5 to avoid rate limits
-      console.log(`\n🔍 Analyzing: "${trend.headline}"`);
+      console.log(`\n🔍 Analyzing: "${trend.name}"`);
       
       // Extract search phrases
       const keyPhrases = this.twitterMonitor.extractKeyPhrases(trend);
@@ -109,17 +109,17 @@ export class TrendMarketMatcher {
       console.log(`   ✅ Found ${uniqueMarkets.length} potential markets`);
 
       // Get Twitter sentiment
-      const tweets = await this.twitterMonitor.searchTweets(trend.headline, 20);
+      const tweets = await this.twitterMonitor.searchTweets(trend.name, 20);
       const sentiment = this.twitterMonitor.analyzeSentiment(tweets);
 
       // Score each market
       for (const market of uniqueMarkets) {
-        const matchScore = this.calculateMatchScore(trend.headline, market.question);
+        const matchScore = this.calculateMatchScore(trend.name, market.question);
         
         if (matchScore > 0.3) { // At least 30% word overlap
           signals.push({
-            trendHeadline: trend.headline,
-            trendVolume: trend.postCount || 0,
+            trendHeadline: trend.name,
+            trendVolume: trend.tweet_volume || 0,
             marketQuestion: market.question,
             marketId: market.id,
             matchScore,
@@ -145,10 +145,10 @@ export class TrendMarketMatcher {
   ): string {
     const parts: string[] = [];
 
-    parts.push(`Twitter trending: "${trend.headline}"`);
+    parts.push(`Twitter trending: "${trend.name}"`);
     
-    if (trend.postCount) {
-      parts.push(`${trend.postCount.toLocaleString()} posts`);
+    if (trend.tweet_volume) {
+      parts.push(`${trend.tweet_volume.toLocaleString()} posts`);
     }
 
     parts.push(`Match: ${(matchScore * 100).toFixed(0)}%`);
