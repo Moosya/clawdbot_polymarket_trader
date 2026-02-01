@@ -72,7 +72,6 @@ async function main() {
           username: result.data.username,
           followers: result.data.public_metrics?.followers_count,
           verified: result.data.verified,
-          rateLimit: result.rateLimit,
         };
       },
     },
@@ -88,7 +87,6 @@ async function main() {
           text: result.data.text,
           created: result.data.created_at,
           likes: result.data.public_metrics?.like_count,
-          rateLimit: result.rateLimit,
         };
       },
     },
@@ -132,12 +130,11 @@ async function main() {
           granularity: 'hour',
         });
         return {
-          totalCount: result.data.meta?.total_tweet_count,
-          hourlyData: result.data.data?.slice(0, 3).map((d: any) => ({
+          totalCount: (result as any).meta?.total_tweet_count,
+          hourlyData: result.data?.slice(0, 3).map((d: any) => ({
             start: d.start,
             count: d.tweet_count,
           })),
-          rateLimit: result.rateLimit,
         };
       },
     },
