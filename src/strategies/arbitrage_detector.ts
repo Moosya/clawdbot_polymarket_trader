@@ -26,11 +26,10 @@ export class ArbitrageDetector {
 
   /**
    * Check a single market for arbitrage opportunities
-   * Works for any 2-outcome market (YES/NO, Team A/Team B, etc.)
    */
   async checkMarket(market: Market): Promise<{ opportunity: ArbitrageOpportunity | null, check: MarketCheck | null }> {
     try {
-      // Filter: must be accepting orders (that's what really matters)
+      // Filter: must be accepting orders
       if (!market.accepting_orders) {
         if (this.debugMode) {
           console.log(`⏭️  Skipping: ${market.question.substring(0, 50)}... (not accepting orders)`);
@@ -48,18 +47,15 @@ export class ArbitrageDetector {
       }
 
       const [token1, token2] = tokens;
-      const conditionId = market.condition_id;
 
-      // Get current prices (pass condition_id for fallback)
-      const price1 = await this.client.getTokenPrice(token1.token_id, conditionId);
-      const price2 = await this.client.getTokenPrice(token2.token_id, conditionId);
+      // Get prices directly from market data (Gamma already has them!)
+      const price1 = await this.client.getTokenPrice(token1.token_id, market);
+      const price2 = await this.client.getTokenPrice(token2.token_id, market);
 
-      // Skip if we couldn't get prices for both tokens
+      // Skip if we couldn't get prices
       if (price1 === null || price2 === null) {
         if (this.debugMode) {
           console.log(`⚠️  Could not get prices for: ${market.question.substring(0, 50)}...`);
-          console.log(`   ${token1.outcome}: ${price1 === null ? 'NO PRICE' : price1}`);
-          console.log(`   ${token2.outcome}: ${price2 === null ? 'NO PRICE' : price2}`);
         }
         return { opportunity: null, check: null };
       }
@@ -67,11 +63,11 @@ export class ArbitrageDetector {
       // Calculate combined cost
       const combinedPrice = price1 + price2;
       const profitPerShare = 1.0 - combinedPrice;
-      const profitPercent = (profitPerShare / combinedPrice) * 100;
+      const profitPercent = combinedPrice > 0 ? (profitPerShare / combinedPrice) * 100 : 0;
 
       // Create check record
       const check: MarketCheck = {
-        market_id: market.condition_id || market.question_id || market.id || "unknown",
+        market_id: market.condition_id || market.id || "unknown",
         question: market.question,
         outcome1: token1.outcome,
         outcome2: token2.outcome,
@@ -101,7 +97,7 @@ export class ArbitrageDetector {
       // Check if arbitrage exists AND meets minimum threshold
       if (combinedPrice < 1.0 && profitPercent >= this.minProfitPercent) {
         const opportunity: ArbitrageOpportunity = {
-          market_id: market.condition_id || market.question_id || market.id || "unknown",
+          market_id: market.condition_id || market.id || "unknown",
           question: market.question,
           yes_price: price1,
           no_price: price2,
@@ -127,7 +123,6 @@ export class ArbitrageDetector {
    */
   async scanAllMarkets(sampleSize?: number): Promise<{ opportunities: ArbitrageOpportunity[], closest: MarketCheck[], marketsChecked: number }> {
     try {
-      console.log('Fetching active markets...');
       const allMarkets = await this.client.getMarkets();
       
       if (!Array.isArray(allMarkets)) {
@@ -135,14 +130,14 @@ export class ArbitrageDetector {
         return { opportunities: [], closest: [], marketsChecked: 0 };
       }
 
-      // Filter: accepting_orders=true AND 2 tokens (that's all that matters)
+      // Filter: accepting_orders=true AND 2 tokens
       const tradeableMarkets = allMarkets.filter(m => 
         m.accepting_orders && m.tokens?.length === 2
       );
 
       console.log(`Found ${tradeableMarkets.length} tradeable markets (out of ${allMarkets.length} total)`);
 
-      // If sample size specified, only check that many markets (for debugging)
+      // If sample size specified, only check that many markets
       const marketsToCheck = sampleSize ? tradeableMarkets.slice(0, sampleSize) : tradeableMarkets;
       
       console.log(`Scanning ${marketsToCheck.length} markets for arbitrage...`);
@@ -153,26 +148,19 @@ export class ArbitrageDetector {
       const opportunities: ArbitrageOpportunity[] = [];
       const allChecks: MarketCheck[] = [];
 
-      // Check markets in parallel (with some rate limiting)
-      const batchSize = 5; // Reduced batch size to avoid rate limiting
-      for (let i = 0; i < marketsToCheck.length; i += batchSize) {
-        const batch = marketsToCheck.slice(i, i + batchSize);
-        const results = await Promise.all(
-          batch.map(market => this.checkMarket(market))
-        );
-
-        // Collect opportunities and checks
-        results.forEach(result => {
-          if (result.opportunity) {
-            opportunities.push(result.opportunity);
-          }
-          if (result.check) {
-            allChecks.push(result.check);
-          }
-        });
-
-        // Delay to avoid rate limiting
-        await this.sleep(500);
+      // Check markets sequentially to see detailed logs
+      for (const market of marketsToCheck) {
+        const result = await this.checkMarket(market);
+        
+        if (result.opportunity) {
+          opportunities.push(result.opportunity);
+        }
+        if (result.check) {
+          allChecks.push(result.check);
+        }
+        
+        // Small delay to avoid hammering
+        await this.sleep(100);
       }
 
       // Sort checks by combined price (lowest = closest to opportunity)
@@ -187,9 +175,6 @@ export class ArbitrageDetector {
     }
   }
 
-  /**
-   * Format opportunity for console output
-   */
   formatOpportunity(opp: ArbitrageOpportunity): string {
     return [
       `\n🦀 ARBITRAGE FOUND!`,
@@ -202,9 +187,6 @@ export class ArbitrageDetector {
     ].join('\n');
   }
 
-  /**
-   * Format closest markets (even if they don't qualify)
-   */
   formatClosest(checks: MarketCheck[]): string {
     if (checks.length === 0) {
       return '⚠️  No markets with valid prices found.';
