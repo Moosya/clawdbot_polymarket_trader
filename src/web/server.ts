@@ -11,6 +11,9 @@ import { ArbitrageDetector } from '../strategies/arbitrage_detector';
 import { VolumeSpikeDetector } from '../strategies/volume_spike_detector';
 import { NewMarketMonitor } from '../strategies/new_market_monitor';
 import { PolymarketClient } from '../api/polymarket_client';
+import { getRecentTrades, getWhaleTrades } from '../api/trade_feed';
+import { storeTrades, readTrades } from '../utils/trade_database';
+import { calculatePositions, calculateWalletPerformance, getTopTraders } from '../strategies/position_tracker';
 
 dotenv.config();
 
@@ -27,6 +30,8 @@ let latestData = {
   arbitrage: [] as any[],
   volumeSpikes: [] as any[],
   newMarkets: [] as any[],
+  whaleTrades: [] as any[],
+  topTraders: [] as any[],
   lastUpdate: new Date().toISOString(),
   scanCount: 0,
 };
@@ -62,16 +67,33 @@ async function scanAllSignals() {
     // Scan for new markets
     const newMarkets = await newMarketMonitor.scanForNewMarkets();
 
+    // Fetch and store recent trades
+    const recentTrades = await getRecentTrades(200);
+    if (recentTrades.length > 0) {
+      storeTrades(recentTrades);
+    }
+
+    // Get whale trades (> $1000)
+    const whaleTrades = await getWhaleTrades(1000, 100);
+
+    // Calculate positions and top traders
+    const allTrades = readTrades();
+    const positions = calculatePositions(allTrades);
+    const performance = calculateWalletPerformance(allTrades, positions);
+    const topTraders = getTopTraders(performance, 5, 20);
+
     // Update cache
     latestData = {
       arbitrage,
       volumeSpikes,
       newMarkets,
+      whaleTrades,
+      topTraders,
       lastUpdate: new Date().toISOString(),
       scanCount: latestData.scanCount + 1,
     };
 
-    console.log(`  ✅ Arbitrage: ${arbitrage.length}, Volume Spikes: ${volumeSpikes.length}, New Markets: ${newMarkets.length}`);
+    console.log(`  ✅ Arbitrage: ${arbitrage.length}, Volume Spikes: ${volumeSpikes.length}, New Markets: ${newMarkets.length}, Whales: ${whaleTrades.length}, Top Traders: ${topTraders.length}`);
   } catch (error) {
     console.error('Error scanning:', error);
   }
@@ -267,6 +289,24 @@ app.get('/', (req, res) => {
       <div id="new-markets-list"></div>
     </div>
 
+    <!-- Whale Trades Section -->
+    <div class="section">
+      <div class="section-title">
+        🐋 Whale Trades (>$1000)
+        <span class="badge" style="background: #8b5cf6; color: white;" id="whale-badge">0</span>
+      </div>
+      <div id="whale-list"></div>
+    </div>
+
+    <!-- Top Traders Section -->
+    <div class="section">
+      <div class="section-title">
+        💎 Top Profitable Traders
+        <span class="badge" style="background: #10b981; color: white;" id="traders-badge">0</span>
+      </div>
+      <div id="traders-list"></div>
+    </div>
+
     <div class="last-update">
       Last updated: <span id="last-update">-</span>
     </div>
@@ -390,6 +430,92 @@ app.get('/', (req, res) => {
                       <td class="price">$\${(market.priceYes + market.priceNo).toFixed(4)}</td>
                       <td class="price">$\${market.liquidity.toLocaleString()}</td>
                       <td class="price">$\${market.volume.toLocaleString()}</td>
+                    </tr>
+                  \`;
+                }).join('')}
+              </tbody>
+            </table>
+          \`;
+        }
+        
+        // Update whale trades
+        const whaleList = document.getElementById('whale-list');
+        document.getElementById('whale-badge').textContent = (data.whaleTrades || []).length;
+        if (!data.whaleTrades || data.whaleTrades.length === 0) {
+          whaleList.innerHTML = '<div class="empty">No recent whale trades (>$1000)</div>';
+        } else {
+          whaleList.innerHTML = \`
+            <table>
+              <thead>
+                <tr>
+                  <th>Market</th>
+                  <th>Side</th>
+                  <th>Size</th>
+                  <th>Price</th>
+                  <th>Wallet</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                \${data.whaleTrades.map(trade => {
+                  const walletShort = trade.trader.substring(0, 6) + '...' + trade.trader.substring(trade.trader.length - 4);
+                  const timeAgo = Math.floor((Date.now() / 1000 - trade.timestamp) / 60);
+                  const timeStr = timeAgo < 60 ? \`\${timeAgo}m ago\` : \`\${Math.floor(timeAgo / 60)}h ago\`;
+                  const sideColor = trade.side === 'BUY' ? '#059669' : '#dc2626';
+                  
+                  return \`
+                    <tr>
+                      <td class="market-question">\${trade.marketQuestion}</td>
+                      <td style="color: \${sideColor}; font-weight: 700;">\${trade.side}</td>
+                      <td class="price">$\${trade.sizeUsd.toLocaleString()}</td>
+                      <td class="price">$\${trade.price.toFixed(4)}</td>
+                      <td class="age" style="font-family: 'SF Mono', monospace;">\${walletShort}</td>
+                      <td class="age">\${timeStr}</td>
+                    </tr>
+                  \`;
+                }).join('')}
+              </tbody>
+            </table>
+          \`;
+        }
+        
+        // Update top traders
+        const tradersList = document.getElementById('traders-list');
+        document.getElementById('traders-badge').textContent = (data.topTraders || []).length;
+        if (!data.topTraders || data.topTraders.length === 0) {
+          tradersList.innerHTML = '<div class="empty">Building trader history... (need at least 5 trades per wallet)</div>';
+        } else {
+          tradersList.innerHTML = \`
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Wallet</th>
+                  <th>Total P&L</th>
+                  <th>ROI %</th>
+                  <th>Win Rate</th>
+                  <th>Trades</th>
+                  <th>Volume</th>
+                  <th>Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                \${data.topTraders.map((trader, idx) => {
+                  const walletShort = trader.wallet.substring(0, 6) + '...' + trader.wallet.substring(trader.wallet.length - 4);
+                  const pnlColor = trader.totalPnL >= 0 ? '#059669' : '#dc2626';
+                  const roiColor = trader.roi >= 0 ? '#059669' : '#dc2626';
+                  const winRateColor = trader.winRate >= 60 ? '#059669' : trader.winRate >= 40 ? '#d97706' : '#6b7280';
+                  
+                  return \`
+                    <tr class="\${trader.totalPnL > 0 ? 'highlight' : ''}">
+                      <td style="font-weight: 700;">#\${idx + 1}</td>
+                      <td style="font-family: 'SF Mono', monospace;">\${walletShort}</td>
+                      <td class="price" style="color: \${pnlColor}; font-weight: 700;">$\${trader.totalPnL.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                      <td class="price" style="color: \${roiColor}; font-weight: 700;">\${trader.roi.toFixed(1)}%</td>
+                      <td class="price" style="color: \${winRateColor};">\${trader.winRate.toFixed(0)}%</td>
+                      <td>\${trader.totalTrades}</td>
+                      <td class="price">$\${trader.totalVolume.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                      <td>\${trader.activePositions}</td>
                     </tr>
                   \`;
                 }).join('')}
