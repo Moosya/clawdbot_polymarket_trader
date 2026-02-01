@@ -1,219 +1,124 @@
 import { PolymarketClient } from '../api/polymarket_client';
 import { ArbitrageOpportunity, Market } from '../types';
 
-interface MarketCheck {
-  market_id: string;
-  question: string;
-  outcome1: string;
-  outcome2: string;
-  price1: number;
-  price2: number;
-  combined_price: number;
-  profit_per_share: number;
-  profit_percent: number;
-}
-
 export class ArbitrageDetector {
   private client: PolymarketClient;
   private minProfitPercent: number;
-  private debugMode: boolean;
 
-  constructor(client: PolymarketClient, minProfitPercent: number = 0.5, debugMode: boolean = false) {
+  constructor(client: PolymarketClient, minProfitPercent: number = 0.5) {
     this.client = client;
     this.minProfitPercent = minProfitPercent;
-    this.debugMode = debugMode;
   }
 
   /**
    * Check a single market for arbitrage opportunities
+   * Returns opportunity if YES + NO < $1.00
    */
-  async checkMarket(market: Market): Promise<{ opportunity: ArbitrageOpportunity | null, check: MarketCheck | null }> {
+  async checkMarket(market: Market): Promise<ArbitrageOpportunity | null> {
     try {
-      // Filter: must be accepting orders
-      if (!market.accepting_orders) {
-        if (this.debugMode) {
-          console.log(`⏭️  Skipping: ${market.question.substring(0, 50)}... (not accepting orders)`);
-        }
-        return { opportunity: null, check: null };
+      // Skip inactive or closed markets
+      if (!market.active || market.closed) {
+        return null;
       }
 
-      // Must have exactly 2 outcomes for arbitrage
+      // Get tokens (Yes and No outcomes)
       const tokens = market.tokens;
-      if (!tokens || tokens.length !== 2) {
-        if (this.debugMode) {
-          console.log(`⚠️  Market has ${tokens?.length || 0} tokens (need 2)`);
-        }
-        return { opportunity: null, check: null };
+      if (!tokens || tokens.length < 2) {
+        return null;
       }
 
-      const [token1, token2] = tokens;
+      const yesToken = tokens.find(t => t.outcome.toLowerCase() === 'yes');
+      const noToken = tokens.find(t => t.outcome.toLowerCase() === 'no');
 
-      // Get prices directly from market data (Gamma already has them!)
-      const price1 = await this.client.getTokenPrice(token1.token_id, market);
-      const price2 = await this.client.getTokenPrice(token2.token_id, market);
-
-      // Skip if we couldn't get prices
-      if (price1 === null || price2 === null) {
-        if (this.debugMode) {
-          console.log(`⚠️  Could not get prices for: ${market.question.substring(0, 50)}...`);
-        }
-        return { opportunity: null, check: null };
+      if (!yesToken || !noToken) {
+        return null;
       }
+
+      // Get current prices (ask prices - what we'd pay to buy)
+      const yesPrice = await this.client.getTokenPrice(yesToken.token_id);
+      const noPrice = await this.client.getTokenPrice(noToken.token_id);
 
       // Calculate combined cost
-      const combinedPrice = price1 + price2;
-      const profitPerShare = 1.0 - combinedPrice;
-      const profitPercent = combinedPrice > 0 ? (profitPerShare / combinedPrice) * 100 : 0;
+      const combinedPrice = yesPrice + noPrice;
 
-      // Create check record
-      const check: MarketCheck = {
-        market_id: market.condition_id || market.id || "unknown",
-        question: market.question,
-        outcome1: token1.outcome,
-        outcome2: token2.outcome,
-        price1: price1,
-        price2: price2,
-        combined_price: combinedPrice,
-        profit_per_share: profitPerShare,
-        profit_percent: profitPercent,
-      };
+      // Check if arbitrage exists (combined < $1.00)
+      if (combinedPrice < 1.0) {
+        const profitPerShare = 1.0 - combinedPrice;
+        const profitPercent = (profitPerShare / combinedPrice) * 100;
 
-      if (this.debugMode) {
-        console.log(`\n📊 ${market.question.substring(0, 60)}...`);
-        console.log(`   ${token1.outcome}: $${price1.toFixed(4)} | ${token2.outcome}: $${price2.toFixed(4)}`);
-        console.log(`   Combined: $${combinedPrice.toFixed(4)} | Profit: $${profitPerShare.toFixed(4)} (${profitPercent.toFixed(2)}%)`);
-        
-        if (combinedPrice < 1.0) {
-          if (profitPercent >= this.minProfitPercent) {
-            console.log(`   ✅ QUALIFIES as arbitrage!`);
-          } else {
-            console.log(`   ⚠️  Arbitrage exists but profit too small (need ${this.minProfitPercent}%)`);
-          }
-        } else {
-          console.log(`   ❌ No arbitrage (combined ≥ $1.00)`);
+        // Only return if profit meets minimum threshold
+        if (profitPercent >= this.minProfitPercent) {
+          return {
+            market_id: market.id,
+            question: market.question,
+            yes_price: yesPrice,
+            no_price: noPrice,
+            combined_price: combinedPrice,
+            profit_per_share: profitPerShare,
+            profit_percent: profitPercent,
+            timestamp: Date.now(),
+          };
         }
       }
 
-      // Check if arbitrage exists AND meets minimum threshold
-      if (combinedPrice < 1.0 && profitPercent >= this.minProfitPercent) {
-        const opportunity: ArbitrageOpportunity = {
-          market_id: market.condition_id || market.id || "unknown",
-          question: market.question,
-          yes_price: price1,
-          no_price: price2,
-          combined_price: combinedPrice,
-          profit_per_share: profitPerShare,
-          profit_percent: profitPercent,
-          timestamp: Date.now(),
-        };
-        return { opportunity, check };
-      }
-
-      return { opportunity: null, check };
+      return null;
     } catch (error) {
-      if (this.debugMode) {
-        console.error(`Error checking market ${market.question}:`, error);
-      }
-      return { opportunity: null, check: null };
+      console.error(`Error checking market ${market.id}:`, error);
+      return null;
     }
   }
 
   /**
    * Scan all markets for arbitrage opportunities
    */
-  async scanAllMarkets(sampleSize?: number): Promise<{ opportunities: ArbitrageOpportunity[], closest: MarketCheck[], marketsChecked: number }> {
+  async scanAllMarkets(): Promise<ArbitrageOpportunity[]> {
     try {
-      const allMarkets = await this.client.getMarkets();
+      console.log('Fetching active markets...');
+      const markets = await this.client.getMarkets();
       
-      if (!Array.isArray(allMarkets)) {
-        console.error('⚠️  Markets response is not an array:', typeof allMarkets);
-        return { opportunities: [], closest: [], marketsChecked: 0 };
-      }
-
-      // Filter: accepting_orders=true AND 2 tokens
-      const tradeableMarkets = allMarkets.filter(m => 
-        m.accepting_orders && m.tokens?.length === 2
-      );
-
-      console.log(`Found ${tradeableMarkets.length} tradeable markets (out of ${allMarkets.length} total)`);
-
-      // If sample size specified, only check that many markets
-      const marketsToCheck = sampleSize ? tradeableMarkets.slice(0, sampleSize) : tradeableMarkets;
-      
-      console.log(`Scanning ${marketsToCheck.length} markets for arbitrage...`);
-      if (sampleSize && this.debugMode) {
-        console.log('🔍 DEBUG MODE: Detailed analysis\n');
-      }
+      console.log(`Scanning ${markets.length} markets for arbitrage...`);
       
       const opportunities: ArbitrageOpportunity[] = [];
-      const allChecks: MarketCheck[] = [];
 
-      // Check markets sequentially to see detailed logs
-      for (const market of marketsToCheck) {
-        const result = await this.checkMarket(market);
-        
-        if (result.opportunity) {
-          opportunities.push(result.opportunity);
-        }
-        if (result.check) {
-          allChecks.push(result.check);
-        }
-        
-        // Small delay to avoid hammering
+      // Check markets in parallel (with some rate limiting)
+      const batchSize = 10;
+      for (let i = 0; i < markets.length; i += batchSize) {
+        const batch = markets.slice(i, i + batchSize);
+        const results = await Promise.all(
+          batch.map(market => this.checkMarket(market))
+        );
+
+        // Filter out nulls and add to opportunities
+        results.forEach(opp => {
+          if (opp) {
+            opportunities.push(opp);
+          }
+        });
+
+        // Small delay to avoid rate limiting
         await this.sleep(100);
       }
 
-      // Sort checks by combined price (lowest = closest to opportunity)
-      const closest = allChecks
-        .sort((a, b) => a.combined_price - b.combined_price)
-        .slice(0, 5);
-
-      return { opportunities, closest, marketsChecked: allChecks.length };
+      return opportunities;
     } catch (error) {
       console.error('Error scanning markets:', error);
-      return { opportunities: [], closest: [], marketsChecked: 0 };
+      return [];
     }
   }
 
+  /**
+   * Format opportunity for console output
+   */
   formatOpportunity(opp: ArbitrageOpportunity): string {
     return [
       `\n🦀 ARBITRAGE FOUND!`,
       `Market: ${opp.question}`,
-      `Option 1: $${opp.yes_price.toFixed(4)} | Option 2: $${opp.no_price.toFixed(4)}`,
+      `YES: $${opp.yes_price.toFixed(4)} | NO: $${opp.no_price.toFixed(4)}`,
       `Combined: $${opp.combined_price.toFixed(4)}`,
       `Profit: $${opp.profit_per_share.toFixed(4)} per share (${opp.profit_percent.toFixed(2)}%)`,
       `Market ID: ${opp.market_id}`,
       `Timestamp: ${new Date(opp.timestamp).toISOString()}`,
     ].join('\n');
-  }
-
-  formatClosest(checks: MarketCheck[]): string {
-    if (checks.length === 0) {
-      return '⚠️  No markets with valid prices found.';
-    }
-
-    let output = '\n📊 Top 5 Closest to Arbitrage:\n';
-    output += '─'.repeat(80) + '\n';
-    
-    checks.forEach((check, idx) => {
-      const isArb = check.combined_price < 1.0;
-      const emoji = isArb ? '💰' : '📈';
-      
-      output += `\n${idx + 1}. ${emoji} ${check.question.substring(0, 60)}...\n`;
-      output += `   ${check.outcome1}: $${check.price1.toFixed(4)} | ${check.outcome2}: $${check.price2.toFixed(4)} | Combined: $${check.combined_price.toFixed(4)}\n`;
-      
-      if (isArb) {
-        output += `   ✅ Arbitrage exists! Profit: $${check.profit_per_share.toFixed(4)}/share (${check.profit_percent.toFixed(2)}%)\n`;
-        if (check.profit_percent < this.minProfitPercent) {
-          output += `   ⚠️  But profit < ${this.minProfitPercent}% threshold\n`;
-        }
-      } else {
-        const overprice = check.combined_price - 1.0;
-        output += `   ❌ Overpriced by $${overprice.toFixed(4)} (no arbitrage)\n`;
-      }
-    });
-    
-    return output;
   }
 
   private sleep(ms: number): Promise<void> {

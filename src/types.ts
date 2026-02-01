@@ -1,39 +1,17 @@
 // Core types for Polymarket trading bot
 
 export interface Market {
-  id?: string; // Some markets don't have id field
-  condition_id?: string;
-  question_id?: string;
+  id: string;
   question: string;
-  description?: string;
-  end_date_iso?: string;
-  game_start_time?: string;
+  end_date_iso: string;
   active: boolean;
   closed: boolean;
-  archived?: boolean;
-  accepting_orders: boolean;
-  accepting_order_timestamp?: string | null;
-  minimum_order_size?: number;
-  minimum_tick_size?: number;
-  enable_order_book?: boolean;
-  market_slug?: string;
-  fpmm?: string;
   tokens?: Token[];
-  tags?: string[];
-  icon?: string;
-  image?: string;
-  is_50_50_outcome?: boolean;
-  neg_risk?: boolean;
-  rewards?: {
-    rates: any;
-    min_size: number;
-    max_spread: number;
-  };
 }
 
 export interface Token {
   token_id: string;
-  outcome: string; // Can be "Yes"/"No" or team names, etc.
+  outcome: string; // "Yes" or "No"
   price?: number;
   winner?: boolean;
 }

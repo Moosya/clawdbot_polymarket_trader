@@ -20,23 +20,16 @@ async function main() {
   }
 
   console.log('✅ API credentials loaded');
-  console.log('✅ Running in PAPER TRADING mode');
-  
-  // DEBUG MODE ON to see what's failing
-  const DEBUG_MODE = true;
-  const SAMPLE_SIZE = 3; // Check just 3 markets to see detailed errors
-  
-  console.log('🔍 DEBUG MODE: Checking first 3 markets with detailed logging\n');
-  console.log('💡 Arbitrage = when Outcome1 + Outcome2 < $1.00\n');
+  console.log('✅ Running in PAPER TRADING mode\n');
 
   // Initialize client
   const client = new PolymarketClient(apiKey, apiSecret, apiPassphrase);
 
   // Initialize arbitrage detector (minimum 0.5% profit)
-  const detector = new ArbitrageDetector(client, 0.5, DEBUG_MODE);
+  const detector = new ArbitrageDetector(client, 0.5);
 
-  // Main loop: scan for arbitrage every 60 seconds
-  const scanInterval = 60000; // 60 seconds
+  // Main loop: scan for arbitrage every 10 seconds
+  const scanInterval = 10000; // 10 seconds
   let scanCount = 0;
 
   console.log(`Starting arbitrage scanner (checking every ${scanInterval / 1000}s)...\n`);
@@ -48,15 +41,13 @@ async function main() {
 
       console.log(`[Scan #${scanCount}] ${new Date().toISOString()}`);
 
-      // Scan markets (sample size for debugging)
-      const { opportunities, closest, marketsChecked } = await detector.scanAllMarkets(SAMPLE_SIZE);
+      // Scan all markets
+      const opportunities = await detector.scanAllMarkets();
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
-      console.log(`✅ Successfully priced ${marketsChecked} markets`);
-
       if (opportunities.length > 0) {
-        console.log(`\n🎉 Found ${opportunities.length} arbitrage opportunities!\n`);
+        console.log(`\n✨ Found ${opportunities.length} arbitrage opportunities!\n`);
 
         // Sort by profit percent (highest first)
         opportunities.sort((a, b) => b.profit_percent - a.profit_percent);
@@ -66,11 +57,8 @@ async function main() {
           console.log(detector.formatOpportunity(opp));
         });
       } else {
-        console.log(`❌ No arbitrage opportunities found (scan took ${duration}s)`);
+        console.log(`No arbitrage opportunities found (scan took ${duration}s)`);
       }
-
-      // Show closest markets (to prove we have real data)
-      console.log(detector.formatClosest(closest));
 
       console.log('\n' + '─'.repeat(80) + '\n');
 
@@ -78,8 +66,8 @@ async function main() {
       await sleep(scanInterval);
     } catch (error) {
       console.error('Error in main loop:', error);
-      console.log('Retrying in 60 seconds...\n');
-      await sleep(60000);
+      console.log('Retrying in 30 seconds...\n');
+      await sleep(30000);
     }
   }
 }

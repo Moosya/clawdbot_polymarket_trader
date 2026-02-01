@@ -2,129 +2,70 @@ import axios, { AxiosInstance } from 'axios';
 import * as crypto from 'crypto';
 import { Market, OrderBook } from '../types';
 
-interface GammaMarket {
-  id: string;
-  question: string;
-  conditionId: string;
-  outcomes: string; // JSON array as string
-  outcomePrices: string; // JSON array as string ["0.50", "0.50"]
-  active: boolean;
-  closed: boolean;
-  acceptingOrders: boolean;
-  clobTokenIds: string; // JSON array as string
-  endDateIso: string;
-}
-
 export class PolymarketClient {
-  private clobApi: AxiosInstance;
-  private gammaApi: AxiosInstance;
+  private api: AxiosInstance;
   private apiKey: string;
   private apiSecret: string;
   private apiPassphrase: string;
-  private clobBaseUrl = 'https://clob.polymarket.com';
-  private gammaBaseUrl = 'https://gamma-api.polymarket.com';
+  private baseUrl = 'https://clob.polymarket.com';
 
   constructor(apiKey: string, apiSecret: string, apiPassphrase: string) {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
     this.apiPassphrase = apiPassphrase;
 
-    this.clobApi = axios.create({
-      baseURL: this.clobBaseUrl,
+    this.api = axios.create({
+      baseURL: this.baseUrl,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
       },
     });
-
-    // Gamma API for public market data (primary source now!)
-    this.gammaApi = axios.create({
-      baseURL: this.gammaBaseUrl,
-      timeout: 10000,
-    });
   }
 
   /**
-   * Fetch all active markets from Gamma API (has prices!)
+   * Generate authentication headers for signed requests
+   */
+  private generateAuthHeaders(
+    method: string,
+    path: string,
+    body?: string
+  ): Record<string, string> {
+    const timestamp = Date.now().toString();
+    const message = timestamp + method.toUpperCase() + path + (body || '');
+    
+    const signature = crypto
+      .createHmac('sha256', Buffer.from(this.apiSecret, 'base64'))
+      .update(message)
+      .digest('base64');
+
+    return {
+      'POLY-ADDRESS': this.apiKey,
+      'POLY-SIGNATURE': signature,
+      'POLY-TIMESTAMP': timestamp,
+      'POLY-PASSPHRASE': this.apiPassphrase,
+    };
+  }
+
+  /**
+   * Fetch all active markets
    */
   async getMarkets(): Promise<Market[]> {
     try {
-      console.log('Fetching markets from Gamma API (has built-in prices)...');
-      const response = await this.gammaApi.get('/markets', {
-        params: {
-          closed: false,
-          limit: 100, // Get first 100 open markets
-        },
-      });
-      
-      const gammaMarkets: GammaMarket[] = response.data;
-      
-      if (!Array.isArray(gammaMarkets)) {
-        console.error('⚠️  Unexpected Gamma response:', typeof gammaMarkets);
-        return [];
-      }
-      
-      console.log(`✅ Got ${gammaMarkets.length} markets from Gamma API`);
-      
-      // Convert Gamma format to our Market format
-      const markets: Market[] = gammaMarkets.map(gm => {
-        const outcomes = JSON.parse(gm.outcomes || '[]');
-        const prices = JSON.parse(gm.outcomePrices || '[]');
-        const tokenIds = JSON.parse(gm.clobTokenIds || '[]');
-        
-        return {
-          id: gm.id,
-          condition_id: gm.conditionId,
-          question: gm.question,
-          end_date_iso: gm.endDateIso,
-          active: gm.active,
-          closed: gm.closed,
-          accepting_orders: gm.acceptingOrders,
-          tokens: outcomes.map((outcome: string, idx: number) => ({
-            token_id: tokenIds[idx] || '',
-            outcome: outcome,
-            price: parseFloat(prices[idx] || '0'),
-          })),
-        };
-      });
-      
-      return markets;
-    } catch (error: any) {
-      if (error.response) {
-        console.error('Gamma API Error:', error.response.status, error.response.data);
-      } else {
-        console.error('Error fetching Gamma markets:', error.message);
-      }
-      return [];
+      const response = await this.api.get('/markets');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching markets:', error);
+      throw error;
     }
   }
 
   /**
-   * Get token price - NOW SIMPLE! Just use the price from market data
+   * Get orderbook for a specific token/outcome
    */
-  async getTokenPrice(tokenId: string, market?: Market): Promise<number | null> {
+  async getOrderBook(tokenId: string): Promise<OrderBook> {
     try {
-      // If we have the market data, just get the price from tokens array
-      if (market && market.tokens) {
-        const token = market.tokens.find(t => t.token_id === tokenId);
-        if (token && typeof token.price === 'number') {
-          console.log(`   ✅ Price from market data: $${token.price.toFixed(4)}`);
-          return token.price;
-        }
-      }
-      
-      console.log(`   ⚠️  No price available for token ${tokenId.substring(0, 16)}...`);
-      return null;
-    } catch (error: any) {
-      console.error(`   ❌ Error getting price: ${error.message}`);
-      return null;
-    }
-  }
-
-  // Keep these for potential future use
-  async getOrderBook(tokenId: string): Promise<OrderBook | null> {
-    try {
-      const response = await this.clobApi.get(`/book`, {
+      const response = await this.api.get(`/book`, {
         params: { token_id: tokenId },
       });
       
@@ -135,19 +76,49 @@ export class PolymarketClient {
         asks: response.data.asks || [],
         timestamp: Date.now(),
       };
-    } catch (error: any) {
-      return null;
+    } catch (error) {
+      console.error(`Error fetching orderbook for ${tokenId}:`, error);
+      throw error;
     }
   }
 
-  getBestPrices(orderbook: OrderBook): { bid: number; ask: number } | null {
-    if (!orderbook.bids.length || !orderbook.asks.length) {
-      return null;
-    }
+  /**
+   * Get the best bid/ask prices from orderbook
+   */
+  getBestPrices(orderbook: OrderBook): { bid: number; ask: number } {
+    const bestBid = orderbook.bids.length > 0 ? orderbook.bids[0].price : 0;
+    const bestAsk = orderbook.asks.length > 0 ? orderbook.asks[0].price : 1;
     
-    return {
-      bid: orderbook.bids[0].price,
-      ask: orderbook.asks[0].price,
-    };
+    return { bid: bestBid, ask: bestAsk };
+  }
+
+  /**
+   * Fetch market by ID
+   */
+  async getMarket(marketId: string): Promise<Market> {
+    try {
+      const response = await this.api.get(`/markets/${marketId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching market ${marketId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get simplified price for Yes/No (for paper trading)
+   * Returns midpoint of bid/ask
+   */
+  async getTokenPrice(tokenId: string): Promise<number> {
+    try {
+      const orderbook = await this.getOrderBook(tokenId);
+      const { bid, ask } = this.getBestPrices(orderbook);
+      
+      // Return midpoint
+      return (bid + ask) / 2;
+    } catch (error) {
+      console.error(`Error getting price for token ${tokenId}:`, error);
+      return 0.5; // Default fallback
+    }
   }
 }
