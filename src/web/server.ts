@@ -94,121 +94,132 @@ app.get('/', (req, res) => {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0a0e27;
-      color: #e0e0e0;
-      padding: 20px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #1a1a1a;
+      padding: 12px;
+      font-size: 13px;
     }
-    .container { max-width: 1400px; margin: 0 auto; }
+    .container { max-width: 100%; margin: 0 auto; }
     h1 {
-      font-size: 2.5em;
+      font-size: 1.5em;
+      margin-bottom: 4px;
+      color: #1a1a1a;
+      font-weight: 600;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 0.85em;
       margin-bottom: 10px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
     }
     .status {
-      display: flex;
-      gap: 20px;
-      margin: 20px 0;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
     }
     .stat-card {
-      background: #1a1f3a;
-      border: 1px solid #2a3154;
-      border-radius: 12px;
-      padding: 20px;
-      flex: 1;
-      min-width: 200px;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 8px 12px;
     }
-    .stat-label { font-size: 0.9em; color: #9ca3af; margin-bottom: 8px; }
-    .stat-value { font-size: 2em; font-weight: bold; color: #fff; }
-    .stat-value.green { color: #10b981; }
-    .stat-value.orange { color: #f59e0b; }
-    .stat-value.blue { color: #3b82f6; }
+    .stat-label { font-size: 0.75em; color: #666; margin-bottom: 2px; text-transform: uppercase; }
+    .stat-value { font-size: 1.5em; font-weight: 700; color: #1a1a1a; }
+    .stat-value.green { color: #059669; }
+    .stat-value.orange { color: #d97706; }
+    .stat-value.blue { color: #2563eb; }
     
     .section {
-      background: #1a1f3a;
-      border: 1px solid #2a3154;
-      border-radius: 12px;
-      padding: 25px;
-      margin: 20px 0;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 10px;
     }
     .section-title {
-      font-size: 1.5em;
-      margin-bottom: 20px;
+      font-size: 1em;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      font-weight: 600;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #e5e7eb;
     }
     .badge {
       display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.75em;
-      font-weight: bold;
-      background: #374151;
-      color: #fff;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 0.7em;
+      font-weight: 700;
+      background: #e5e7eb;
+      color: #374151;
     }
-    .badge.green { background: #10b981; }
-    .badge.orange { background: #f59e0b; }
-    .badge.blue { background: #3b82f6; }
+    .badge.green { background: #d1fae5; color: #065f46; }
+    .badge.orange { background: #fed7aa; color: #92400e; }
+    .badge.blue { background: #dbeafe; color: #1e40af; }
     
-    .opportunity {
-      background: #0f1629;
-      border: 1px solid #374151;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 15px 0;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9em;
     }
-    .opportunity.highlight {
-      border-color: #10b981;
-      box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
-    }
-    .opportunity-title {
-      font-size: 1.1em;
+    th {
+      text-align: left;
+      padding: 6px 8px;
+      background: #f3f4f6;
+      border-bottom: 2px solid #d1d5db;
       font-weight: 600;
-      margin-bottom: 15px;
-      color: #fff;
+      font-size: 0.75em;
+      text-transform: uppercase;
+      color: #4b5563;
     }
-    .opportunity-details {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 15px;
+    td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #e5e7eb;
     }
-    .detail {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    tr:hover {
+      background: #f9fafb;
     }
-    .detail-label { font-size: 0.85em; color: #9ca3af; }
-    .detail-value { font-size: 1.1em; font-weight: 600; }
+    tr.highlight {
+      background: #ecfdf5;
+      border-left: 3px solid #059669;
+    }
+    tr.highlight:hover {
+      background: #d1fae5;
+    }
+    
+    .market-question {
+      font-weight: 500;
+      color: #1a1a1a;
+      max-width: 500px;
+    }
+    .price { font-family: 'SF Mono', monospace; font-weight: 600; }
+    .profit { color: #059669; font-weight: 700; }
+    .spike { color: #d97706; font-weight: 700; }
+    .age { color: #6b7280; font-size: 0.85em; }
     
     .empty {
       text-align: center;
-      padding: 40px;
-      color: #6b7280;
+      padding: 20px;
+      color: #9ca3af;
       font-style: italic;
-    }
-    
-    .last-update {
-      margin-top: 30px;
-      text-align: center;
-      color: #6b7280;
       font-size: 0.9em;
     }
     
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+    .last-update {
+      margin-top: 12px;
+      text-align: right;
+      color: #9ca3af;
+      font-size: 0.75em;
     }
-    .loading { animation: pulse 2s infinite; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🦀 Polymarket Trading Signals</h1>
-    <p style="color: #9ca3af; margin-bottom: 20px;">Live market analysis • Auto-refreshes every 30s</p>
+    <p class="subtitle">Live market analysis • Auto-refreshes every 30s</p>
     
     <div class="status">
       <div class="stat-card">
@@ -282,31 +293,32 @@ app.get('/', (req, res) => {
         if (data.arbitrage.length === 0) {
           arbList.innerHTML = '<div class="empty">No arbitrage opportunities found</div>';
         } else {
-          arbList.innerHTML = data.arbitrage.map(opp => \`
-            <div class="opportunity highlight">
-              <div class="opportunity-title">\${opp.question}</div>
-              <div class="opportunity-details">
-                <div class="detail">
-                  <span class="detail-label">YES Price</span>
-                  <span class="detail-value">$\${opp.yes_price.toFixed(4)}</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">NO Price</span>
-                  <span class="detail-value">$\${opp.no_price.toFixed(4)}</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">Combined</span>
-                  <span class="detail-value">$\${opp.combined_price.toFixed(4)}</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">Profit</span>
-                  <span class="detail-value" style="color: #10b981;">
-                    $\${opp.profit_per_share.toFixed(4)} (\${opp.profit_percent.toFixed(2)}%)
-                  </span>
-                </div>
-              </div>
-            </div>
-          \`).join('');
+          arbList.innerHTML = \`
+            <table>
+              <thead>
+                <tr>
+                  <th>Market</th>
+                  <th>YES</th>
+                  <th>NO</th>
+                  <th>Combined</th>
+                  <th>Profit/Share</th>
+                  <th>Profit %</th>
+                </tr>
+              </thead>
+              <tbody>
+                \${data.arbitrage.map(opp => \`
+                  <tr class="highlight">
+                    <td class="market-question">\${opp.question}</td>
+                    <td class="price">$\${opp.yes_price.toFixed(4)}</td>
+                    <td class="price">$\${opp.no_price.toFixed(4)}</td>
+                    <td class="price">$\${opp.combined_price.toFixed(4)}</td>
+                    <td class="price profit">$\${opp.profit_per_share.toFixed(4)}</td>
+                    <td class="profit">\${opp.profit_percent.toFixed(2)}%</td>
+                  </tr>
+                \`).join('')}
+              </tbody>
+            </table>
+          \`;
         }
         
         // Update volume spikes
@@ -314,29 +326,34 @@ app.get('/', (req, res) => {
         if (data.volumeSpikes.length === 0) {
           volList.innerHTML = '<div class="empty">No volume spikes detected (building history...)</div>';
         } else {
-          volList.innerHTML = data.volumeSpikes.map(spike => \`
-            <div class="opportunity">
-              <div class="opportunity-title">\${spike.question}</div>
-              <div class="opportunity-details">
-                <div class="detail">
-                  <span class="detail-label">Current 24hr Volume</span>
-                  <span class="detail-value">$\${spike.current24hrVolume.toLocaleString()}</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">Average Volume</span>
-                  <span class="detail-value">$\${spike.avgVolume.toLocaleString()}</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">Spike Multiplier</span>
-                  <span class="detail-value" style="color: #f59e0b;">\${spike.spikeMultiplier.toFixed(2)}x</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">Increase</span>
-                  <span class="detail-value">+\${spike.percentIncrease.toFixed(0)}%</span>
-                </div>
-              </div>
-            </div>
-          \`).join('');
+          volList.innerHTML = \`
+            <table>
+              <thead>
+                <tr>
+                  <th>Market</th>
+                  <th>24hr Vol</th>
+                  <th>Avg Vol</th>
+                  <th>Spike</th>
+                  <th>Increase</th>
+                  <th>YES</th>
+                  <th>NO</th>
+                </tr>
+              </thead>
+              <tbody>
+                \${data.volumeSpikes.map(spike => \`
+                  <tr>
+                    <td class="market-question">\${spike.question}</td>
+                    <td class="price">$\${spike.current24hrVolume.toLocaleString()}</td>
+                    <td class="price">$\${spike.avgVolume.toLocaleString()}</td>
+                    <td class="spike">\${spike.spikeMultiplier.toFixed(2)}x</td>
+                    <td class="spike">+\${spike.percentIncrease.toFixed(0)}%</td>
+                    <td class="price">$\${spike.priceYes.toFixed(4)}</td>
+                    <td class="price">$\${spike.priceNo.toFixed(4)}</td>
+                  </tr>
+                \`).join('')}
+              </tbody>
+            </table>
+          \`;
         }
         
         // Update new markets
@@ -344,39 +361,41 @@ app.get('/', (req, res) => {
         if (data.newMarkets.length === 0) {
           newList.innerHTML = '<div class="empty">No new markets in last 24h</div>';
         } else {
-          newList.innerHTML = data.newMarkets.map(market => {
-            const ageStr = market.ageMinutes < 60 
-              ? \`\${market.ageMinutes.toFixed(0)} minutes\`
-              : \`\${(market.ageMinutes / 60).toFixed(1)} hours\`;
-            const hasArb = (market.priceYes + market.priceNo) < 1.0;
-            
-            return \`
-            <div class="opportunity \${hasArb ? 'highlight' : ''}">
-              <div class="opportunity-title">
-                \${market.question}
-                \${hasArb ? '<span class="badge green">ARBITRAGE</span>' : ''}
-              </div>
-              <div class="opportunity-details">
-                <div class="detail">
-                  <span class="detail-label">Age</span>
-                  <span class="detail-value">\${ageStr}</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">YES Price</span>
-                  <span class="detail-value">$\${market.priceYes.toFixed(4)}</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">NO Price</span>
-                  <span class="detail-value">$\${market.priceNo.toFixed(4)}</span>
-                </div>
-                <div class="detail">
-                  <span class="detail-label">Liquidity</span>
-                  <span class="detail-value">$\${market.liquidity.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
+          newList.innerHTML = \`
+            <table>
+              <thead>
+                <tr>
+                  <th>Market</th>
+                  <th>Age</th>
+                  <th>YES</th>
+                  <th>NO</th>
+                  <th>Combined</th>
+                  <th>Liquidity</th>
+                  <th>Volume</th>
+                </tr>
+              </thead>
+              <tbody>
+                \${data.newMarkets.map(market => {
+                  const ageStr = market.ageMinutes < 60 
+                    ? \`\${market.ageMinutes.toFixed(0)}m\`
+                    : \`\${(market.ageMinutes / 60).toFixed(1)}h\`;
+                  const hasArb = (market.priceYes + market.priceNo) < 1.0;
+                  
+                  return \`
+                    <tr class="\${hasArb ? 'highlight' : ''}">
+                      <td class="market-question">\${market.question}</td>
+                      <td class="age">\${ageStr}</td>
+                      <td class="price">$\${market.priceYes.toFixed(4)}</td>
+                      <td class="price">$\${market.priceNo.toFixed(4)}</td>
+                      <td class="price">$\${(market.priceYes + market.priceNo).toFixed(4)}</td>
+                      <td class="price">$\${market.liquidity.toLocaleString()}</td>
+                      <td class="price">$\${market.volume.toLocaleString()}</td>
+                    </tr>
+                  \`;
+                }).join('')}
+              </tbody>
+            </table>
           \`;
-          }).join('');
         }
         
         // Update timestamp

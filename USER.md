@@ -8,6 +8,13 @@
 
 ---
 
+## Infrastructure
+
+**Server:**
+- IP: 174.138.55.80 (DigitalOcean)
+- Hostname: openclaw124onubuntu-s-2vcpu-4gb-120gb-intel-nyc3-01
+- Location: NYC3
+
 ## Context
 
 **Interests:**
