@@ -20,72 +20,36 @@ async function main() {
   }
 
   console.log('✅ API credentials loaded');
-  console.log('✅ Running in PAPER TRADING mode');
-  
-  // Debug mode: set to true to see detailed logging for first few markets
-  const DEBUG_MODE = true;
-  const SAMPLE_SIZE = DEBUG_MODE ? 10 : undefined; // Check 10 markets in debug mode
-  
-  if (DEBUG_MODE) {
-    console.log('🔍 DEBUG MODE ENABLED - checking first 10 markets\n');
-    console.log('💡 Arbitrage = when YES + NO < $1.00 (guaranteed profit at settlement)\n');
-  }
+  console.log('✅ Running in PAPER TRADING mode\n');
 
   // Initialize client
   const client = new PolymarketClient(apiKey, apiSecret, apiPassphrase);
 
-  // Initialize arbitrage detector (minimum 0.5% profit)
-  const detector = new ArbitrageDetector(client, 0.5, DEBUG_MODE);
-
-  // Main loop: scan for arbitrage every 10 seconds
-  const scanInterval = 10000; // 10 seconds
-  let scanCount = 0;
-
-  console.log(`Starting arbitrage scanner (checking every ${scanInterval / 1000}s)...\n`);
-
-  while (true) {
-    try {
-      scanCount++;
-      const startTime = Date.now();
-
-      console.log(`[Scan #${scanCount}] ${new Date().toISOString()}`);
-
-      // Scan markets (sample size for debugging)
-      const { opportunities, closest } = await detector.scanAllMarkets(SAMPLE_SIZE);
-
-      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-
-      if (opportunities.length > 0) {
-        console.log(`\n✨ Found ${opportunities.length} arbitrage opportunities!\n`);
-
-        // Sort by profit percent (highest first)
-        opportunities.sort((a, b) => b.profit_percent - a.profit_percent);
-
-        // Print all opportunities
-        opportunities.forEach(opp => {
-          console.log(detector.formatOpportunity(opp));
-        });
-      } else {
-        console.log(`\n❌ No arbitrage opportunities found (scan took ${duration}s)`);
-      }
-
-      // Always show closest markets (to prove we have real data)
-      console.log(detector.formatClosest(closest));
-
-      console.log('\n' + '─'.repeat(80) + '\n');
-
-      // Wait before next scan
-      await sleep(scanInterval);
-    } catch (error) {
-      console.error('Error in main loop:', error);
-      console.log('Retrying in 30 seconds...\n');
-      await sleep(30000);
+  // First, let's inspect the raw API response
+  console.log('🔍 DEBUG: Fetching markets to inspect structure...\n');
+  const markets = await client.getMarkets();
+  
+  console.log(`📦 Got ${markets.length} markets from API`);
+  
+  if (markets.length > 0) {
+    const firstMarket = markets[0];
+    console.log('\n📋 First market structure:');
+    console.log(JSON.stringify(firstMarket, null, 2));
+    console.log('\n' + '─'.repeat(80) + '\n');
+    
+    // Check what fields exist
+    console.log('Available fields:', Object.keys(firstMarket));
+    console.log('Has "active":', 'active' in firstMarket, '=', firstMarket.active);
+    console.log('Has "closed":', 'closed' in firstMarket, '=', firstMarket.closed);
+    console.log('Has "tokens":', 'tokens' in firstMarket);
+    if ('tokens' in firstMarket) {
+      console.log('  Number of tokens:', firstMarket.tokens?.length);
+      console.log('  Token outcomes:', firstMarket.tokens?.map((t: any) => t.outcome));
     }
+    console.log('\n' + '─'.repeat(80) + '\n');
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  
+  console.log('Stopping after inspection. Fix the code based on actual structure.\n');
 }
 
 // Handle graceful shutdown
