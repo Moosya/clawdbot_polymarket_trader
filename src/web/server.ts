@@ -322,6 +322,17 @@ app.get('/', (req, res) => {
   </div>
 
   <script>
+    // Format large numbers as K/M
+    function formatVolume(num) {
+      if (num >= 1000000) {
+        return '$' + (num / 1000000).toFixed(1) + 'M';
+      } else if (num >= 1000) {
+        return '$' + (num / 1000).toFixed(0) + 'K';
+      } else {
+        return '$' + num.toFixed(0);
+      }
+    }
+    
     async function updateData() {
       try {
         const response = await fetch('/api/signals');
@@ -358,11 +369,11 @@ app.get('/', (req, res) => {
                 \${data.arbitrage.map(opp => \`
                   <tr class="highlight">
                     <td class="market-question">\${opp.question}</td>
-                    <td class="price">$\${opp.yes_price.toFixed(4)}</td>
-                    <td class="price">$\${opp.no_price.toFixed(4)}</td>
-                    <td class="price">$\${opp.combined_price.toFixed(4)}</td>
-                    <td class="price profit">$\${opp.profit_per_share.toFixed(4)}</td>
-                    <td class="profit">\${opp.profit_percent.toFixed(2)}%</td>
+                    <td class="price">$\${opp.yes_price.toFixed(2)}</td>
+                    <td class="price">$\${opp.no_price.toFixed(2)}</td>
+                    <td class="price">$\${opp.combined_price.toFixed(2)}</td>
+                    <td class="price profit">$\${opp.profit_per_share.toFixed(2)}</td>
+                    <td class="profit">\${opp.profit_percent.toFixed(1)}%</td>
                   </tr>
                 \`).join('')}
               </tbody>
@@ -392,12 +403,12 @@ app.get('/', (req, res) => {
                 \${data.volumeSpikes.map(spike => \`
                   <tr>
                     <td class="market-question">\${spike.question}</td>
-                    <td class="price">$\${spike.current24hrVolume.toLocaleString()}</td>
-                    <td class="price">$\${spike.avgVolume.toLocaleString()}</td>
-                    <td class="spike">\${spike.spikeMultiplier.toFixed(2)}x</td>
+                    <td class="price">\${formatVolume(spike.current24hrVolume)}</td>
+                    <td class="price">\${formatVolume(spike.avgVolume)}</td>
+                    <td class="spike">\${spike.spikeMultiplier.toFixed(1)}x</td>
                     <td class="spike">+\${spike.percentIncrease.toFixed(0)}%</td>
-                    <td class="price">$\${spike.priceYes.toFixed(4)}</td>
-                    <td class="price">$\${spike.priceNo.toFixed(4)}</td>
+                    <td class="price">$\${spike.priceYes.toFixed(2)}</td>
+                    <td class="price">$\${spike.priceNo.toFixed(2)}</td>
                   </tr>
                 \`).join('')}
               </tbody>
@@ -434,11 +445,11 @@ app.get('/', (req, res) => {
                     <tr class="\${hasArb ? 'highlight' : ''}">
                       <td class="market-question">\${market.question}</td>
                       <td class="age">\${ageStr}</td>
-                      <td class="price">$\${market.priceYes.toFixed(4)}</td>
-                      <td class="price">$\${market.priceNo.toFixed(4)}</td>
-                      <td class="price">$\${(market.priceYes + market.priceNo).toFixed(4)}</td>
-                      <td class="price">$\${market.liquidity.toLocaleString()}</td>
-                      <td class="price">$\${market.volume.toLocaleString()}</td>
+                      <td class="price">$\${market.priceYes.toFixed(2)}</td>
+                      <td class="price">$\${market.priceNo.toFixed(2)}</td>
+                      <td class="price">$\${(market.priceYes + market.priceNo).toFixed(2)}</td>
+                      <td class="price">\${formatVolume(market.liquidity)}</td>
+                      <td class="price">\${formatVolume(market.volume)}</td>
                     </tr>
                   \`;
                 }).join('')}
@@ -476,8 +487,8 @@ app.get('/', (req, res) => {
                     <tr>
                       <td class="market-question">\${trade.marketQuestion}</td>
                       <td style="color: \${sideColor}; font-weight: 700;">\${trade.side}</td>
-                      <td class="price">$\${trade.sizeUsd.toLocaleString()}</td>
-                      <td class="price">$\${trade.price.toFixed(4)}</td>
+                      <td class="price">\${formatVolume(trade.sizeUsd)}</td>
+                      <td class="price">$\${trade.price.toFixed(2)}</td>
                       <td class="age" style="font-family: 'SF Mono', monospace;">\${walletShort}</td>
                       <td class="age">\${timeStr}</td>
                     </tr>
@@ -519,11 +530,11 @@ app.get('/', (req, res) => {
                     <tr class="\${trader.totalPnL > 0 ? 'highlight' : ''}">
                       <td style="font-weight: 700;">#\${idx + 1}</td>
                       <td style="font-family: 'SF Mono', monospace;">\${walletShort}</td>
-                      <td class="price" style="color: \${pnlColor}; font-weight: 700;">$\${trader.totalPnL.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
-                      <td class="price" style="color: \${roiColor}; font-weight: 700;">\${trader.roi.toFixed(1)}%</td>
+                      <td class="price" style="color: \${pnlColor}; font-weight: 700;">\${formatVolume(trader.totalPnL)}</td>
+                      <td class="price" style="color: \${roiColor}; font-weight: 700;">\${trader.roi.toFixed(0)}%</td>
                       <td class="price" style="color: \${winRateColor};">\${trader.winRate.toFixed(0)}%</td>
                       <td>\${trader.totalTrades}</td>
-                      <td class="price">$\${trader.totalVolume.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                      <td class="price">\${formatVolume(trader.totalVolume)}</td>
                       <td>\${trader.activePositions}</td>
                     </tr>
                   \`;
