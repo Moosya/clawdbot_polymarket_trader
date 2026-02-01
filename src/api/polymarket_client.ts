@@ -97,9 +97,12 @@ export class PolymarketClient {
    */
   async getOrderBook(tokenId: string): Promise<OrderBook | null> {
     try {
+      console.log(`   📖 Trying orderbook for token ${tokenId.substring(0, 16)}...`);
       const response = await this.clobApi.get(`/book`, {
         params: { token_id: tokenId },
       });
+      
+      console.log(`   ✅ Orderbook found! Bids: ${response.data.bids?.length || 0}, Asks: ${response.data.asks?.length || 0}`);
       
       return {
         market_id: response.data.market || tokenId,
@@ -111,9 +114,13 @@ export class PolymarketClient {
     } catch (error: any) {
       // Orderbook might not exist for low-volume markets
       if (error.response?.status === 404) {
+        console.log(`   ❌ Orderbook 404: No orderbook for this token`);
         return null;
       }
-      console.error(`Error fetching orderbook for ${tokenId}:`, error.message);
+      console.error(`   ❌ Orderbook error (${error.response?.status || 'network'}): ${error.message}`);
+      if (error.response?.data) {
+        console.error(`   Response:`, JSON.stringify(error.response.data).substring(0, 200));
+      }
       return null;
     }
   }
@@ -123,11 +130,14 @@ export class PolymarketClient {
    */
   getBestPrices(orderbook: OrderBook): { bid: number; ask: number } | null {
     if (!orderbook.bids.length || !orderbook.asks.length) {
+      console.log(`   ⚠️  Orderbook empty (bids: ${orderbook.bids.length}, asks: ${orderbook.asks.length})`);
       return null;
     }
     
     const bestBid = orderbook.bids[0].price;
     const bestAsk = orderbook.asks[0].price;
+    
+    console.log(`   💰 Best prices: Bid $${bestBid.toFixed(4)}, Ask $${bestAsk.toFixed(4)}`);
     
     return { bid: bestBid, ask: bestAsk };
   }
@@ -159,12 +169,15 @@ export class PolymarketClient {
         const prices = this.getBestPrices(orderbook);
         if (prices) {
           // Return midpoint of bid/ask
-          return (prices.bid + prices.ask) / 2;
+          const midpoint = (prices.bid + prices.ask) / 2;
+          console.log(`   ✅ Using orderbook midpoint: $${midpoint.toFixed(4)}`);
+          return midpoint;
         }
       }
 
       // Try 2: Get from Gamma API (last traded price)
       if (conditionId) {
+        console.log(`   📡 Trying Gamma API for condition ${conditionId.substring(0, 16)}...`);
         try {
           const gammaResponse = await this.gammaApi.get(`/markets/${conditionId}`);
           const market = gammaResponse.data;
@@ -173,17 +186,27 @@ export class PolymarketClient {
           if (market.tokens) {
             const token = market.tokens.find((t: any) => t.token_id === tokenId);
             if (token && typeof token.price === 'number') {
+              console.log(`   ✅ Gamma API price: $${token.price.toFixed(4)}`);
               return token.price;
+            } else {
+              console.log(`   ⚠️  Gamma API: Token not found or no price`);
             }
+          } else {
+            console.log(`   ⚠️  Gamma API: No tokens in response`);
           }
-        } catch (gammaError) {
-          // Gamma API failed, continue to null
+        } catch (gammaError: any) {
+          console.log(`   ❌ Gamma API error (${gammaError.response?.status || 'network'}): ${gammaError.message}`);
+          if (gammaError.response?.data) {
+            console.log(`   Response:`, JSON.stringify(gammaError.response.data).substring(0, 200));
+          }
         }
+      } else {
+        console.log(`   ⚠️  No condition_id provided, skipping Gamma API`);
       }
 
       return null;
     } catch (error: any) {
-      console.error(`Error getting price for token ${tokenId}:`, error.message);
+      console.error(`   ❌ Fatal error getting price for token ${tokenId}:`, error.message);
       return null;
     }
   }
