@@ -51,7 +51,7 @@ async function scanAllSignals() {
   
   try {
     // Scan for arbitrage
-    let arbitrage = [];
+    let arbitrage: any[] = [];
     if (arbitrageDetector) {
       arbitrage = await arbitrageDetector.scanAllMarkets();
     }
