@@ -731,23 +731,35 @@ app.get('/', (req, res) => {
                   <th>24hr Vol</th>
                   <th>Avg Vol (7d)</th>
                   <th>Spike</th>
-                  <th>% Change</th>
-                  <th>YES Price</th>
-                  <th>NO Price</th>
+                  <th>Vol Δ</th>
+                  <th>Price</th>
+                  <th>24h Δ</th>
+                  <th>Spread</th>
                 </tr>
               </thead>
               <tbody>
-                \${data.volumeSpikes.map(spike => \`
+                \${data.volumeSpikes.map(spike => {
+                  // Color code price ratio
+                  const yesPercent = Math.round(spike.priceYes * 100);
+                  const priceColor = yesPercent > 60 ? '#059669' : yesPercent < 40 ? '#dc2626' : '#6b7280';
+                  
+                  // Color code price change
+                  const changeColor = spike.priceChange24h > 0 ? '#059669' : spike.priceChange24h < 0 ? '#dc2626' : '#6b7280';
+                  const changeIcon = spike.priceChange24h > 0 ? '↗' : spike.priceChange24h < 0 ? '↘' : '→';
+                  
+                  return \`
                   <tr>
                     <td class="market-question">\${spike.question}</td>
                     <td class="price">\${formatVolume(spike.current24hrVolume)}</td>
                     <td class="price">\${formatVolume(spike.avgVolume)}</td>
                     <td class="spike">\${spike.spikeMultiplier.toFixed(1)}x</td>
                     <td class="spike">+\${spike.percentIncrease.toFixed(0)}%</td>
-                    <td class="price">$\${spike.priceYes.toFixed(2)}</td>
-                    <td class="price">$\${spike.priceNo.toFixed(2)}</td>
+                    <td class="price" style="color: \${priceColor}; font-weight: 600;">\${spike.priceRatio}</td>
+                    <td style="color: \${changeColor}; font-weight: 600;">\${changeIcon} \${Math.abs(spike.priceChange24h).toFixed(0)}%</td>
+                    <td class="price">\${spike.spread.toFixed(2)}</td>
                   </tr>
-                \`).join('')}
+                \`;
+                }).join('')}
               </tbody>
             </table>
           \`;

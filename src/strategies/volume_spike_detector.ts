@@ -33,6 +33,9 @@ interface VolumeSpike {
   percentIncrease: number;
   priceYes: number;
   priceNo: number;
+  priceRatio: string; // e.g., "75/25"
+  priceChange24h: number; // % change
+  spread: number;
   liquidity: number;
   timestamp: number;
 }
@@ -131,58 +134,67 @@ export class VolumeSpikeDetector {
       for (const market of markets) {
         const marketId = market.condition_id;
         const volume24hr = parseFloat(market.volume24hr) || 0;
-        const volumeNum = parseFloat(market.volumeNum) || 0;
+        const volume1wk = parseFloat(market.volume1wk) || 0;
 
-        // Skip if no significant volume
-        if (volume24hr < 100) {
+        // Skip if no significant volume (minimum $1K in 24hr)
+        if (volume24hr < 1000) {
           continue;
         }
 
-        // Record current volume
-        this.recordVolume(marketId, market.question, volume24hr, volumeNum);
+        // Calculate average from 1-week volume (more reliable than our stored history)
+        const avgVolume = volume1wk / 7;
 
-        // Calculate average
-        const avgVolume = this.getAverageVolume(marketId);
-
-        // Need at least 3 historical data points to detect spike
-        if (this.history[marketId].length < 3) {
+        // Skip if no historical data
+        if (avgVolume === 0) {
           continue;
         }
 
         // Check for spike
-        if (avgVolume > 0) {
-          const spikeMultiplier = volume24hr / avgVolume;
-          const percentIncrease = ((volume24hr - avgVolume) / avgVolume) * 100;
+        const spikeMultiplier = volume24hr / avgVolume;
+        const percentIncrease = ((volume24hr - avgVolume) / avgVolume) * 100;
 
-          if (spikeMultiplier >= this.minSpikeMultiplier) {
-            // Parse outcomePrices (may be JSON string or array)
-            let priceYes = 0;
-            let priceNo = 0;
-            if (market.outcomePrices) {
-              try {
-                const prices = typeof market.outcomePrices === 'string' 
-                  ? JSON.parse(market.outcomePrices)
-                  : market.outcomePrices;
-                priceYes = parseFloat(prices[0]) || 0;
-                priceNo = parseFloat(prices[1]) || 0;
-              } catch (e) {
-                // Ignore parse errors
-              }
+        if (spikeMultiplier >= this.minSpikeMultiplier) {
+          // Parse outcomePrices (may be JSON string or array)
+          let priceYes = 0;
+          let priceNo = 0;
+          if (market.outcomePrices) {
+            try {
+              const prices = typeof market.outcomePrices === 'string' 
+                ? JSON.parse(market.outcomePrices)
+                : market.outcomePrices;
+              priceYes = parseFloat(prices[0]) || 0;
+              priceNo = parseFloat(prices[1]) || 0;
+            } catch (e) {
+              // Ignore parse errors
             }
-
-            spikes.push({
-              marketId,
-              question: market.question,
-              current24hrVolume: volume24hr,
-              avgVolume,
-              spikeMultiplier,
-              percentIncrease,
-              priceYes,
-              priceNo,
-              liquidity: parseFloat(market.liquidity) || 0,
-              timestamp: Date.now(),
-            });
           }
+
+          // Calculate ratio for display (e.g., "75/25")
+          const yesPercent = Math.round(priceYes * 100);
+          const noPercent = Math.round(priceNo * 100);
+          const priceRatio = `${yesPercent}/${noPercent}`;
+
+          // Get price change
+          const priceChange24h = parseFloat(market.oneDayPriceChange) || 0;
+
+          // Get spread
+          const spread = parseFloat(market.spread) || 0;
+
+          spikes.push({
+            marketId,
+            question: market.question,
+            current24hrVolume: volume24hr,
+            avgVolume,
+            spikeMultiplier,
+            percentIncrease,
+            priceYes,
+            priceNo,
+            priceRatio,
+            priceChange24h,
+            spread,
+            liquidity: parseFloat(market.liquidity) || 0,
+            timestamp: Date.now(),
+          });
         }
       }
 
