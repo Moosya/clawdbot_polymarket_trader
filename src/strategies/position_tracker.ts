@@ -177,6 +177,8 @@ export function getTopTraders(
 ): WalletPerformance[] {
   return performance
     .filter((p) => p.totalTrades >= minTrades)
+    // Only show if they have P&L (either closed positions or unrealized)
+    .filter((p) => p.totalPnL !== 0 || p.closedPositions > 0)
     .sort((a, b) => b.totalPnL - a.totalPnL)
     .slice(0, limit);
 }

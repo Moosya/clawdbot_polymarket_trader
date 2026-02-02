@@ -575,6 +575,10 @@ app.get('/', (req, res) => {
     <h1>🦀 Polymarket Trading Signals</h1>
     <p class="subtitle">Live market analysis • Auto-refreshes every 30s</p>
     
+    <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #d1d5db;">
+      <a href="/stats" style="color: #2563eb; text-decoration: none; font-weight: 500; font-size: 0.9em;">📊 View Stats</a>
+    </div>
+    
     <div class="status">
       <div class="stat-card">
         <div class="stat-label">Arbitrage Opportunities</div>
@@ -644,6 +648,7 @@ app.get('/', (req, res) => {
       </div>
       <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
         Ranked by total P&L (profit/loss). ROI = profit efficiency. Win Rate = % of closed positions that were profitable. Green = profitable, Red = losing.
+        <br><strong>Note:</strong> Requires traders to have closed positions (bought AND sold). May take 24-48h to accumulate data.
       </div>
       <div id="traders-list"></div>
     </div>
