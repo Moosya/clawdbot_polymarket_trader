@@ -11,3 +11,9 @@
 - Check `REMINDERS.md` 
 - Weekdays at 7:30 AM EST: Send Maria PT appointment reminder
 - Telegram + Email to stiles.mesas_3r@icloud.com
+
+### Skill Discovery (Daily)
+- Check ClawdHub/MoltDirectory/crustipedia.com for new useful skills
+- Look for skills relevant to current projects (trading, automation, data analysis)
+- Alert Andrei if something interesting appears
+- Track last check in `memory/skill-discovery-log.md`
