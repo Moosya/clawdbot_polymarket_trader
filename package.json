@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/main.js",
+    "start": "mkdir -p polymarket_bot/logs && node dist/main.js 2>&1 | tee polymarket_bot/logs/console.log",
     "dev": "ts-node src/main.ts",
     "web": "ts-node src/web/server.ts",
     "web:build": "tsc && node dist/web/server.js",
