@@ -1,6 +1,6 @@
 # MEMORY.md - Long-Term Memory
 
-**Last Updated:** February 4, 2026
+**Last Updated:** February 6, 2026
 
 ---
 
@@ -76,46 +76,39 @@
 - 30-day validation period minimum
 - Track: win rate, Sharpe ratio, max drawdown
 
-### Git Workflow (CRITICAL - THE REAL PROBLEM!)
+### Git Workflow (SOLVED - Feb 6, 2026) ✅
 
-**THE ISSUE:**
-- I run in a sandbox container
-- My `/workspace` is NOT the same as Andrei's `/root/clawdbot_polymarket_trader`
-- I have NO GitHub credentials configured in my container
-- I CANNOT push to GitHub from my sandbox
+**THE ISSUE WAS:**
+- Workspace `/workspace` is owned by UID 1000 (host clawdbot user)
+- Container runs as root (UID 0)
+- Git blocks operations due to ownership mismatch
+- Container root filesystem is read-only, can't persist git config
 
-**WHAT I KEEP DOING WRONG:**
-1. Try to commit/push from `/workspace`
-2. Hit git credential errors
-3. Try to clone fresh to `/tmp`
-4. Still can't push (no credentials)
-5. Waste 30 minutes troubleshooting
-6. Andrei gets frustrated
+**THE SOLUTION (WORKING NOW):**
+GitHub token stored in `/workspace/.env` as `GITHUB_TOKEN`
 
-**THE ACTUAL SOLUTION:**
-❌ DON'T: Try to push from my container (I can't)
-✅ DO: Create complete updated files using `write` tool
-✅ DO: Provide Andrei with exact files/patch to apply
-✅ DO: Let HIM commit and push from his server
-
-**CORRECT WORKFLOW:**
+**To push changes, use the helper script:**
 ```bash
-# In my container (what I CAN do):
-cd /home/clawdbot/clawd
-write updated_file.ts  # Use write tool, NOT shell redirects
-cat updated_file.ts    # Show him the content
-
-# On Andrei's server (what HE does):
-cd /root/clawdbot_polymarket_trader
-# Copy my files or apply changes
-git add -A
-git commit -m "description"
-git push origin master
-npm run build
-pm2 restart polymarket-web
+bash /workspace/git-push-helper.sh "Your commit message"
 ```
 
-**STOP TRYING TO PUSH FROM THE SANDBOX. YOU CAN'T.**
+**What the script does:**
+1. Clones repo fresh into `/tmp` (owned by root, no permission issues)
+2. Sets authenticated remote URL using token from .env
+3. Copies all changed files from `/workspace` to `/tmp/repo`
+4. Commits and pushes to GitHub
+
+**Key files:**
+- `/workspace/.env` - Contains `GITHUB_TOKEN=ghp_...` (gitignored, safe)
+- `/workspace/git-push-helper.sh` - Automated push script
+- `/workspace/CONTAINER_RESTART_PROCEDURES.md` - Full documentation
+
+**This persists across container restarts because:**
+- Token is in .env (mounted from host)
+- Helper script is in workspace (mounted from host)
+- Both survive container rebuilds
+
+**NEVER commit the token to the repo - GitHub will block the push!**
 
 ### File Writing in Sandbox
 - ✅ Use `write` tool for creating/editing files
