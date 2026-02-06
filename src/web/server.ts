@@ -11,8 +11,15 @@ import { ArbitrageDetector } from '../strategies/arbitrage_detector';
 import { VolumeSpikeDetector } from '../strategies/volume_spike_detector';
 import { NewMarketMonitor } from '../strategies/new_market_monitor';
 import { PolymarketClient } from '../api/polymarket_client';
-import { getRecentTrades, getWhaleTrades } from '../api/trade_feed';
-import { storeTrades, readTrades } from '../utils/trade_database';
+import { getRecentTrades as fetchRecentTrades } from '../api/trade_feed';
+import { 
+  storeTrades, 
+  readTrades, 
+  getWhaleTrades,
+  getDatabaseStats,
+  getDatabaseSize,
+  migrateFromJSON 
+} from '../utils/sqlite_database';
 import { calculatePositions, calculateWalletPerformance, getTopTraders } from '../strategies/position_tracker';
 
 dotenv.config();
@@ -68,13 +75,13 @@ async function scanAllSignals() {
     const newMarkets = await newMarketMonitor.scanForNewMarkets();
 
     // Fetch and store recent trades
-    const recentTrades = await getRecentTrades(200);
+    const recentTrades = await fetchRecentTrades(200);
     if (recentTrades.length > 0) {
       storeTrades(recentTrades);
     }
 
-    // Get whale trades (> $1000)
-    const whaleTrades = await getWhaleTrades(1000, 100);
+    // Get whale trades (>= $2000) from database
+    const whaleTrades = getWhaleTrades(2000, 100);
 
     // Calculate positions and top traders
     const allTrades = readTrades();
@@ -106,28 +113,12 @@ app.get('/api/signals', (req, res) => {
 
 // API endpoint for operational stats
 app.get('/api/stats', (req, res) => {
-  const fs = require('fs');
-  const path = require('path');
+  const dbStats = getDatabaseStats();
   const allTrades = readTrades();
-  const positions = calculatePositions(allTrades);
   
-  // Data collection stats
-  const uniqueWallets = new Set(allTrades.map(t => t.trader.toLowerCase())).size;
-  const uniqueMarkets = new Set(allTrades.map(t => t.marketId)).size;
-  const oldestTrade = allTrades.length > 0 ? allTrades[allTrades.length - 1].timestamp : 0;
-  const newestTrade = allTrades.length > 0 ? allTrades[0].timestamp : 0;
-  const dataRangeHours = (newestTrade - oldestTrade) / 3600;
-  
-  // Database file size
-  const tradesFile = path.join(process.cwd(), 'data', 'trades.json');
-  let fileSize = 0;
-  try {
-    const stats = fs.statSync(tradesFile);
-    fileSize = stats.size;
-  } catch (e) {}
-  
-  // Volume stats
-  const totalVolume = allTrades.reduce((sum, t) => sum + t.sizeUsd, 0);
+  const oldestTimestamp = dbStats.oldestTrade ? dbStats.oldestTrade.getTime() / 1000 : 0;
+  const newestTimestamp = dbStats.newestTrade ? dbStats.newestTrade.getTime() / 1000 : 0;
+  const dataRangeHours = (newestTimestamp - oldestTimestamp) / 3600;
   
   // Market activity
   const marketActivity = new Map<string, number>();
@@ -145,16 +136,16 @@ app.get('/api/stats', (req, res) => {
   
   res.json({
     dataCollection: {
-      totalTrades: allTrades.length,
-      uniqueWallets,
-      uniqueMarkets,
-      oldestTrade: oldestTrade > 0 ? new Date(oldestTrade * 1000).toISOString() : null,
-      newestTrade: newestTrade > 0 ? new Date(newestTrade * 1000).toISOString() : null,
+      totalTrades: dbStats.totalTrades,
+      uniqueWallets: dbStats.uniqueWallets,
+      uniqueMarkets: dbStats.uniqueMarkets,
+      oldestTrade: dbStats.oldestTrade ? dbStats.oldestTrade.toISOString() : null,
+      newestTrade: dbStats.newestTrade ? dbStats.newestTrade.toISOString() : null,
       dataRangeHours: dataRangeHours.toFixed(1),
-      tradesPerHour: dataRangeHours > 0 ? (allTrades.length / dataRangeHours).toFixed(1) : 0,
-      fileSizeBytes: fileSize,
-      fileSizeMB: (fileSize / 1024 / 1024).toFixed(2),
-      totalVolume,
+      tradesPerHour: dataRangeHours > 0 ? (dbStats.totalTrades / dataRangeHours).toFixed(1) : 0,
+      fileSizeMB: getDatabaseSize(),
+      totalVolume: dbStats.totalVolume,
+      minTradeSize: dbStats.minTradeSize,
     },
     scannerHealth: {
       totalScans: latestData.scanCount,
@@ -167,7 +158,7 @@ app.get('/api/stats', (req, res) => {
       profitableTraders: latestData.topTraders.length,
     },
     marketCoverage: {
-      activeMarkets: uniqueMarkets,
+      activeMarkets: dbStats.uniqueMarkets,
       topMarkets,
     },
   });
@@ -308,6 +299,10 @@ app.get('/stats', (req, res) => {
           <span class="stat-label">Total Volume</span>
           <span class="stat-value" id="total-volume">-</span>
         </div>
+        <div class="stat-row">
+          <span class="stat-label">Min Trade Size</span>
+          <span class="stat-value" id="min-trade-size">$2,000</span>
+        </div>
       </div>
 
       <div class="card">
@@ -386,7 +381,7 @@ app.get('/stats', (req, res) => {
         document.getElementById('unique-markets').textContent = data.dataCollection.uniqueMarkets.toLocaleString();
         document.getElementById('data-range').textContent = data.dataCollection.dataRangeHours + 'h';
         document.getElementById('collection-rate').textContent = data.dataCollection.tradesPerHour + ' trades/hr';
-        document.getElementById('db-size').textContent = data.dataCollection.fileSizeMB + ' MB';
+        document.getElementById('db-size').textContent = data.dataCollection.fileSizeMB;
         document.getElementById('total-volume').textContent = formatVolume(data.dataCollection.totalVolume);
         
         // Scanner health
@@ -921,6 +916,11 @@ async function start() {
   if (!hasArbitrageKeys) {
     console.log('⚠️  No Polymarket API keys - arbitrage detection disabled');
   }
+
+  // Migrate from JSON to SQLite if needed
+  const path = require('path');
+  const jsonFile = path.join(process.cwd(), 'data', 'trades.json');
+  migrateFromJSON(jsonFile);
 
   // Initial scan
   await scanAllSignals();

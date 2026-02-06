@@ -15,69 +15,83 @@ Use /tmp as a temporary git workspace for push operations.
 
 This procedure needs to be done fresh each session because /tmp is ephemeral.
 
-### How to Push Changes
+### How to Push Changes (From Container) ✅ WORKING
+
+**Prerequisites:** 
+- GitHub token is stored in `/workspace/.env` as `GITHUB_TOKEN`
+- Token is protected in .env (gitignored) - don't commit it to the repo!
 
 ```bash
+# Set git identity (needed in /tmp since HOME is read-only)
+export HOME=/tmp
+git config --global user.email "clawdbot@polymarket.bot" 2>/dev/null || true
+git config --global user.name "Krabby" 2>/dev/null || true
+
+# Load GitHub token from .env
+GITHUB_TOKEN=$(grep GITHUB_TOKEN /workspace/.env | cut -d'=' -f2)
+
 # 1. Clone fresh into /tmp (you own this as root)
-cd /tmp && git clone https://github.com/Moosya/clawdbot_polymarket_trader.git repo
+cd /tmp && rm -rf repo 2>/dev/null || true
+git clone https://github.com/Moosya/clawdbot_polymarket_trader.git repo
 
-# 2. Copy all changed files from workspace
-cd /workspace
-git diff --name-only HEAD > /tmp/changed_files.txt
-git ls-files --others --exclude-standard >> /tmp/changed_files.txt
-
-# 3. Copy files to the temp repo
+# 2. Set remote URL with token for push access
 cd /tmp/repo
-while IFS= read -r file; do
-  if [ -f "/workspace/$file" ]; then
-    mkdir -p "$(dirname "$file")"
-    cp "/workspace/$file" "$file"
-  fi
-done < /tmp/changed_files.txt
+git remote set-url origin https://${GITHUB_TOKEN}@github.com/Moosya/clawdbot_polymarket_trader.git
+
+# 3. Copy changed files from workspace
+cp /workspace/CONTAINER_RESTART_PROCEDURES.md /tmp/repo/
+# (or use rsync for all files: rsync -av --exclude='.git' /workspace/ /tmp/repo/)
 
 # 4. Commit and push
 git add .
 git commit -m "Update from workspace"
 git push origin master
+
+echo "✅ Successfully pushed to GitHub!"
 ```
 
-### Quick Helper Script
-
-Create this as needed:
+### Quick Commit & Push Script (Container) ✅
 
 ```bash
 #!/bin/bash
-# /workspace/git-push-helper.sh
+# git-push-helper.sh - Complete workflow from container
 
 set -e
 
-echo "🦀 Cloning repo to /tmp..."
+export HOME=/tmp
+git config --global user.email "clawdbot@polymarket.bot" 2>/dev/null || true
+git config --global user.name "Krabby" 2>/dev/null || true
+
+# Load GitHub token
+GITHUB_TOKEN=$(grep GITHUB_TOKEN /workspace/.env | cut -d'=' -f2)
+
 cd /tmp && rm -rf repo 2>/dev/null || true
+echo "🦀 Cloning repo..."
 git clone https://github.com/Moosya/clawdbot_polymarket_trader.git repo
+
+cd /tmp/repo
+echo "🦀 Setting up authenticated remote..."
+git remote set-url origin https://${GITHUB_TOKEN}@github.com/Moosya/clawdbot_polymarket_trader.git
 
 echo "🦀 Syncing workspace files..."
 rsync -av --exclude='.git' /workspace/ /tmp/repo/
 
 echo "🦀 Committing changes..."
-cd /tmp/repo
 git add .
-git status
+git status --short
+git commit -m "${1:-Update from container workspace}"
 
-read -p "Commit message: " msg
-git commit -m "$msg"
-
-echo "🦀 Pushing to origin..."
+echo "🦀 Pushing to GitHub..."
 git push origin master
 
-echo "✅ Done! Cleaning up..."
+echo ""
+echo "✅ Successfully pushed to GitHub!"
 rm -rf /tmp/repo
 ```
 
-### Alternative: Simple Rsync Method
-
+**Usage:**
 ```bash
-# One-liner to sync and push
-cd /tmp && rm -rf repo && git clone https://github.com/Moosya/clawdbot_polymarket_trader.git repo && rsync -av --exclude='.git' /workspace/ /tmp/repo/ && cd /tmp/repo && git add . && git commit -m "Update from workspace" && git push origin master && rm -rf /tmp/repo
+bash /workspace/git-push-helper.sh "Your commit message"
 ```
 
 ---

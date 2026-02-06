@@ -1,6 +1,6 @@
 # MEMORY.md - Long-Term Memory
 
-**Last Updated:** February 1, 2026
+**Last Updated:** February 4, 2026
 
 ---
 
@@ -41,6 +41,13 @@
 - Weeks 4-8: 30-day paper trading validation
 - Week 9+: Deploy live if successful
 
+**Recent Progress (Feb 1-4):**
+- ✅ SQLite database migration (Feb 2) - Unlimited trade storage, $2K minimum filter
+- ✅ Signal logging system (Feb 3) - JSON Lines format for analyzing strategy performance
+- ✅ Workflow documentation (Feb 3) - Best practices for development
+- 🔄 Twitter sentiment integration (Feb 1) - Built but needs testing
+- 📋 Wallet/market drill-down pages (planned) - See DRILLDOWN_FEATURES.md
+
 ---
 
 ## Important Context
@@ -68,6 +75,53 @@
 - Don't risk capital until strategies are proven
 - 30-day validation period minimum
 - Track: win rate, Sharpe ratio, max drawdown
+
+### Git Workflow (CRITICAL - THE REAL PROBLEM!)
+
+**THE ISSUE:**
+- I run in a sandbox container
+- My `/workspace` is NOT the same as Andrei's `/root/clawdbot_polymarket_trader`
+- I have NO GitHub credentials configured in my container
+- I CANNOT push to GitHub from my sandbox
+
+**WHAT I KEEP DOING WRONG:**
+1. Try to commit/push from `/workspace`
+2. Hit git credential errors
+3. Try to clone fresh to `/tmp`
+4. Still can't push (no credentials)
+5. Waste 30 minutes troubleshooting
+6. Andrei gets frustrated
+
+**THE ACTUAL SOLUTION:**
+❌ DON'T: Try to push from my container (I can't)
+✅ DO: Create complete updated files using `write` tool
+✅ DO: Provide Andrei with exact files/patch to apply
+✅ DO: Let HIM commit and push from his server
+
+**CORRECT WORKFLOW:**
+```bash
+# In my container (what I CAN do):
+cd /home/clawdbot/clawd
+write updated_file.ts  # Use write tool, NOT shell redirects
+cat updated_file.ts    # Show him the content
+
+# On Andrei's server (what HE does):
+cd /root/clawdbot_polymarket_trader
+# Copy my files or apply changes
+git add -A
+git commit -m "description"
+git push origin master
+npm run build
+pm2 restart polymarket-web
+```
+
+**STOP TRYING TO PUSH FROM THE SANDBOX. YOU CAN'T.**
+
+### File Writing in Sandbox
+- ✅ Use `write` tool for creating/editing files
+- ❌ Shell redirects (`echo > file`) fail (permission issues)
+- ✅ Read with `read` tool or `cat`
+- Skills can be bootstrapped from /opt tools
 
 ---
 

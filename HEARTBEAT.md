@@ -17,3 +17,15 @@
 - Look for skills relevant to current projects (trading, automation, data analysis)
 - Alert Andrei if something interesting appears
 - Track last check in `memory/skill-discovery-log.md`
+
+### ClawdHub Skills TODO (Weekly Check)
+- Review `TODO_CLAWDHUB_SKILLS.md` 
+- Remind Andrei about pending skill installations (~every 3-5 days)
+- Priority: Security tools first (prompt-guard, dont-hack-me)
+
+### DigitalOcean SMTP Ticket (Active)
+- Monitor: https://cloudsupport.digitalocean.com/s/case-detail?recordId=500QP00001GhXFBYA3
+- Check every few heartbeats (3-4 times per day)
+- Looking for: Approval to enable outbound SMTP ports (25, 465, 587)
+- Alert Andrei when status changes
+- Once approved: Update Himalaya config and test email sending

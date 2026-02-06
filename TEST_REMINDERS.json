@@ -23,7 +23,9 @@
       "trigger_time": "2026-02-02T21:20:00Z",
       "message": "🧪 TEST REMINDER #3: This is your 4:20 PM test reminder (tomorrow)!",
       "destinations": ["telegram", "email"],
-      "status": "pending"
+      "status": "sent",
+      "sent_at": "2026-02-02T21:22:41Z",
+      "notes": "Sent via heartbeat - 2min 41s late"
     },
     {
       "id": "test4",
