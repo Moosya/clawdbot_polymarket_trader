@@ -116,6 +116,17 @@ bash /workspace/git-push-helper.sh "Your commit message"
 - ✅ Read with `read` tool or `cat`
 - Skills can be bootstrapped from /opt tools
 
+### Email Capabilities (Feb 6, 2026)
+**Current Status:**
+- ✅ Can READ email from Gmail account (via Himalaya CLI)
+- ❌ Cannot SEND email yet - DigitalOcean blocks outbound SMTP ports
+- 🎫 Support ticket open to unblock ports 25, 465, 587
+- 📍 Monitor: https://cloudsupport.digitalocean.com/s/case-detail?recordId=500QP00001GhXFBYA3
+
+**Once unblocked:**
+- Will be able to send reminders via email (currently Telegram-only)
+- Himalaya config ready, just needs ports opened
+
 ---
 
 ## Quick Reference
