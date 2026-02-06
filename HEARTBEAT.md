@@ -29,3 +29,11 @@
 - Looking for: Approval to enable outbound SMTP ports (25, 465, 587)
 - Alert Andrei when status changes
 - Once approved: Update Himalaya config and test email sending
+
+### Memory Maintenance (Every 2-3 days) 🧠
+- **Read MEMORY.md and check for STALE INFO** - outdated info is worse than no info!
+- Review recent daily memory files (last 3-5 days)
+- Update MEMORY.md with new lessons/context
+- Remove or correct sections that no longer apply
+- **Example:** On Feb 6, MEMORY.md said "I CAN'T push to GitHub" causing 30min wasted per session
+- Git push now works via `/workspace/git-push-helper.sh` with token from .env
