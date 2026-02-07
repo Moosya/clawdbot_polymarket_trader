@@ -37,28 +37,70 @@ function getDatabase(): Database.Database {
 function initializeSchema() {
   const db = getDatabase();
   
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS trades (
-      id TEXT PRIMARY KEY,
-      trader TEXT NOT NULL,
-      marketId TEXT NOT NULL,
-      side TEXT NOT NULL,
-      size REAL NOT NULL,
-      price REAL NOT NULL,
-      sizeUsd REAL NOT NULL,
-      timestamp INTEGER NOT NULL,
-      feeRateBps INTEGER,
-      makerAddress TEXT
-    );
-    
-    CREATE INDEX IF NOT EXISTS idx_trader ON trades(trader);
-    CREATE INDEX IF NOT EXISTS idx_market ON trades(marketId);
-    CREATE INDEX IF NOT EXISTS idx_timestamp ON trades(timestamp DESC);
-    CREATE INDEX IF NOT EXISTS idx_trader_market ON trades(trader, marketId);
-    CREATE INDEX IF NOT EXISTS idx_size ON trades(sizeUsd DESC);
-  `);
+  // Check if old schema exists with 'size' column
+  const tableInfo = db.pragma('table_info(trades)');
+  const hasOldSizeColumn = tableInfo.some((col: any) => col.name === 'size');
   
-  console.log('✅ SQLite schema initialized');
+  if (hasOldSizeColumn) {
+    console.log('🔄 Migrating database: removing unused "size" column...');
+    
+    // SQLite doesn't support DROP COLUMN, so we recreate the table
+    db.exec(`
+      -- Create new table without size column
+      CREATE TABLE trades_new (
+        id TEXT PRIMARY KEY,
+        trader TEXT NOT NULL,
+        marketId TEXT NOT NULL,
+        side TEXT NOT NULL,
+        price REAL NOT NULL,
+        sizeUsd REAL NOT NULL,
+        timestamp INTEGER NOT NULL,
+        feeRateBps INTEGER,
+        makerAddress TEXT
+      );
+      
+      -- Copy data (excluding size column)
+      INSERT INTO trades_new (id, trader, marketId, side, price, sizeUsd, timestamp, feeRateBps, makerAddress)
+      SELECT id, trader, marketId, side, price, sizeUsd, timestamp, feeRateBps, makerAddress
+      FROM trades;
+      
+      -- Drop old table and rename new one
+      DROP TABLE trades;
+      ALTER TABLE trades_new RENAME TO trades;
+      
+      -- Recreate indexes
+      CREATE INDEX idx_trader ON trades(trader);
+      CREATE INDEX idx_market ON trades(marketId);
+      CREATE INDEX idx_timestamp ON trades(timestamp DESC);
+      CREATE INDEX idx_trader_market ON trades(trader, marketId);
+      CREATE INDEX idx_size ON trades(sizeUsd DESC);
+    `);
+    
+    console.log('✅ Database migration complete');
+  } else {
+    // Fresh database or already migrated
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS trades (
+        id TEXT PRIMARY KEY,
+        trader TEXT NOT NULL,
+        marketId TEXT NOT NULL,
+        side TEXT NOT NULL,
+        price REAL NOT NULL,
+        sizeUsd REAL NOT NULL,
+        timestamp INTEGER NOT NULL,
+        feeRateBps INTEGER,
+        makerAddress TEXT
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_trader ON trades(trader);
+      CREATE INDEX IF NOT EXISTS idx_market ON trades(marketId);
+      CREATE INDEX IF NOT EXISTS idx_timestamp ON trades(timestamp DESC);
+      CREATE INDEX IF NOT EXISTS idx_trader_market ON trades(trader, marketId);
+      CREATE INDEX IF NOT EXISTS idx_size ON trades(sizeUsd DESC);
+    `);
+    
+    console.log('✅ SQLite schema initialized');
+  }
 }
 
 // Store trades (with $2K minimum filter)
@@ -75,8 +117,8 @@ export function storeTrades(newTrades: TradeFeedTrade[]): void {
   
   const insert = db.prepare(`
     INSERT OR REPLACE INTO trades (
-      id, trader, marketId, side, size, price, sizeUsd, timestamp, feeRateBps, makerAddress
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, trader, marketId, side, price, sizeUsd, timestamp, feeRateBps, makerAddress
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const insertMany = db.transaction((trades: TradeFeedTrade[]) => {
@@ -86,7 +128,6 @@ export function storeTrades(newTrades: TradeFeedTrade[]): void {
         trade.trader,
         trade.marketId,
         trade.side,
-        trade.size,
         trade.price,
         trade.sizeUsd,
         trade.timestamp,
