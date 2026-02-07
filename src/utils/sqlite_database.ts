@@ -46,11 +46,15 @@ function initializeSchema() {
     
     // SQLite doesn't support DROP COLUMN, so we recreate the table
     db.exec(`
-      -- Create new table without size column
+      -- Create new table without size column, add missing fields
       CREATE TABLE trades_new (
         id TEXT PRIMARY KEY,
         trader TEXT NOT NULL,
         marketId TEXT NOT NULL,
+        marketSlug TEXT,
+        marketQuestion TEXT,
+        marketCategory TEXT,
+        outcome TEXT,
         side TEXT NOT NULL,
         price REAL NOT NULL,
         sizeUsd REAL NOT NULL,
@@ -59,7 +63,7 @@ function initializeSchema() {
         makerAddress TEXT
       );
       
-      -- Copy data (excluding size column)
+      -- Copy data (excluding size column, new fields will be NULL for old data)
       INSERT INTO trades_new (id, trader, marketId, side, price, sizeUsd, timestamp, feeRateBps, makerAddress)
       SELECT id, trader, marketId, side, price, sizeUsd, timestamp, feeRateBps, makerAddress
       FROM trades;
@@ -84,6 +88,10 @@ function initializeSchema() {
         id TEXT PRIMARY KEY,
         trader TEXT NOT NULL,
         marketId TEXT NOT NULL,
+        marketSlug TEXT,
+        marketQuestion TEXT,
+        marketCategory TEXT,
+        outcome TEXT,
         side TEXT NOT NULL,
         price REAL NOT NULL,
         sizeUsd REAL NOT NULL,
@@ -117,8 +125,9 @@ export function storeTrades(newTrades: TradeFeedTrade[]): void {
   
   const insert = db.prepare(`
     INSERT OR REPLACE INTO trades (
-      id, trader, marketId, side, price, sizeUsd, timestamp, feeRateBps, makerAddress
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, trader, marketId, marketSlug, marketQuestion, marketCategory, outcome,
+      side, price, sizeUsd, timestamp, feeRateBps, makerAddress
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const insertMany = db.transaction((trades: TradeFeedTrade[]) => {
@@ -127,12 +136,16 @@ export function storeTrades(newTrades: TradeFeedTrade[]): void {
         trade.id,
         trade.trader,
         trade.marketId,
+        trade.marketSlug || null,
+        trade.marketQuestion || null,
+        trade.marketCategory || null,
+        trade.outcome || null,
         trade.side,
         trade.price,
         trade.sizeUsd,
         trade.timestamp,
-        trade.feeRateBps || null,
-        trade.makerAddress || null
+        null,  // feeRateBps - not in TradeFeedTrade interface
+        null   // makerAddress - not in TradeFeedTrade interface
       );
     }
   });
@@ -284,12 +297,17 @@ function rowToTrade(row: any): TradeFeedTrade {
     id: row.id,
     trader: row.trader,
     marketId: row.marketId,
+    marketSlug: row.marketSlug || '',
+    marketQuestion: row.marketQuestion || '',
+    marketCategory: row.marketCategory || null,
+    outcome: row.outcome || '',
     side: row.side,
     price: row.price,
     sizeUsd: row.sizeUsd,
     timestamp: row.timestamp,
-    feeRateBps: row.feeRateBps,
-    makerAddress: row.makerAddress,
+    // conditionId and tokenId not stored in DB, will be null
+    conditionId: null,
+    tokenId: null,
   };
 }
 

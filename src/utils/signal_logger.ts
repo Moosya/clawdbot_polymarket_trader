@@ -5,7 +5,7 @@ const LOG_DIR = process.env.LOG_DIR || './polymarket_bot/logs';
 const SIGNAL_LOG = join(LOG_DIR, 'signals.jsonl');
 
 export interface SignalEvent {
-  ts: string;
+  ts?: string;  // Optional because log() adds it automatically
   type: 'SIGNAL' | 'TRADE' | 'POSITION' | 'PERFORMANCE';
   [key: string]: any;
 }
