@@ -285,7 +285,6 @@ function rowToTrade(row: any): TradeFeedTrade {
     trader: row.trader,
     marketId: row.marketId,
     side: row.side,
-    size: row.size,
     price: row.price,
     sizeUsd: row.sizeUsd,
     timestamp: row.timestamp,
