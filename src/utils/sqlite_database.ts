@@ -37,16 +37,20 @@ function getDatabase(): Database.Database {
 function initializeSchema() {
   const db = getDatabase();
   
-  // Check if old schema exists with 'size' column
+  // Check if table exists and needs migration
   const tableInfo = db.pragma('table_info(trades)');
-  const hasOldSizeColumn = tableInfo.some((col: any) => col.name === 'size');
+  const columns = tableInfo.map((col: any) => col.name);
   
-  if (hasOldSizeColumn) {
-    console.log('🔄 Migrating database: removing unused "size" column...');
+  const hasOldSizeColumn = columns.includes('size');
+  const missingNewColumns = !columns.includes('marketSlug') || !columns.includes('marketQuestion');
+  
+  if (tableInfo.length > 0 && (hasOldSizeColumn || missingNewColumns)) {
+    // Table exists but needs migration
+    console.log('🔄 Migrating database schema...');
     
-    // SQLite doesn't support DROP COLUMN, so we recreate the table
+    // SQLite doesn't support DROP/ADD COLUMN easily, so we recreate the table
     db.exec(`
-      -- Create new table without size column, add missing fields
+      -- Create new table with correct schema
       CREATE TABLE trades_new (
         id TEXT PRIMARY KEY,
         trader TEXT NOT NULL,
@@ -63,9 +67,10 @@ function initializeSchema() {
         makerAddress TEXT
       );
       
-      -- Copy data (excluding size column, new fields will be NULL for old data)
+      -- Copy existing data (new fields will be NULL for old data)
       INSERT INTO trades_new (id, trader, marketId, side, price, sizeUsd, timestamp, feeRateBps, makerAddress)
-      SELECT id, trader, marketId, side, price, sizeUsd, timestamp, feeRateBps, makerAddress
+      SELECT id, trader, marketId, side, price, sizeUsd, timestamp, 
+             COALESCE(feeRateBps, NULL), COALESCE(makerAddress, NULL)
       FROM trades;
       
       -- Drop old table and rename new one
@@ -81,10 +86,11 @@ function initializeSchema() {
     `);
     
     console.log('✅ Database migration complete');
-  } else {
-    // Fresh database or already migrated
+  } else if (tableInfo.length === 0) {
+    // Fresh database - create table
+    console.log('📦 Creating fresh database schema...');
     db.exec(`
-      CREATE TABLE IF NOT EXISTS trades (
+      CREATE TABLE trades (
         id TEXT PRIMARY KEY,
         trader TEXT NOT NULL,
         marketId TEXT NOT NULL,
@@ -100,14 +106,16 @@ function initializeSchema() {
         makerAddress TEXT
       );
       
-      CREATE INDEX IF NOT EXISTS idx_trader ON trades(trader);
-      CREATE INDEX IF NOT EXISTS idx_market ON trades(marketId);
-      CREATE INDEX IF NOT EXISTS idx_timestamp ON trades(timestamp DESC);
-      CREATE INDEX IF NOT EXISTS idx_trader_market ON trades(trader, marketId);
-      CREATE INDEX IF NOT EXISTS idx_size ON trades(sizeUsd DESC);
+      CREATE INDEX idx_trader ON trades(trader);
+      CREATE INDEX idx_market ON trades(marketId);
+      CREATE INDEX idx_timestamp ON trades(timestamp DESC);
+      CREATE INDEX idx_trader_market ON trades(trader, marketId);
+      CREATE INDEX idx_size ON trades(sizeUsd DESC);
     `);
     
     console.log('✅ SQLite schema initialized');
+  } else {
+    console.log('✅ Database schema is up to date');
   }
 }
 

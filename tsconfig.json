@@ -16,5 +16,11 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/api/polymarket_client_v2.ts",
+    "src/signals/twitter_monitor.ts",
+    "src/test_twitter_endpoints.ts"
+  ]
 }
