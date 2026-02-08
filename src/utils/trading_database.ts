@@ -6,8 +6,11 @@
 import Database from 'better-sqlite3';
 import * as path from 'path';
 
-// Use shared data directory - on host: /opt/polymarket/data/trading.db
-const TRADING_DB_PATH = path.resolve(process.env.TRADING_DB_PATH || path.join(__dirname, '../../data/trading.db'));
+// Use shared data directory - same location as trades.db
+// On host: /opt/polymarket/data/trading.db
+// In sandbox: /workspace/polymarket_runtime/data/trading.db (for testing)
+const TRADING_DB_PATH = process.env.TRADING_DB_PATH 
+  || path.join(process.cwd(), 'data', 'trading.db');
 
 export interface Signal {
   id: number;
@@ -62,7 +65,14 @@ let db: Database.Database | null = null;
 
 function getDb(): Database.Database {
   if (!db) {
-    db = new Database(TRADING_DB_PATH, { readonly: false });
+    console.log(`[Trading DB] Connecting to: ${TRADING_DB_PATH}`);
+    try {
+      db = new Database(TRADING_DB_PATH, { readonly: false });
+      console.log(`[Trading DB] Connected successfully`);
+    } catch (error) {
+      console.error(`[Trading DB] Failed to connect:`, error);
+      throw error;
+    }
   }
   return db;
 }
@@ -83,7 +93,7 @@ export function getRecentSignals(minConfidence: number = 0, limit: number = 50):
 }
 
 /**
- * Get open paper positions
+ * Get open paper positions (with current prices parsed from notes)
  */
 export function getOpenPositions(): PaperPosition[] {
   const dbConn = getDb();
@@ -93,7 +103,27 @@ export function getOpenPositions(): PaperPosition[] {
     ORDER BY entry_time DESC
   `);
   
-  return stmt.all() as PaperPosition[];
+  const positions = stmt.all() as PaperPosition[];
+  
+  // Parse price data from notes field
+  return positions.map(pos => {
+    if (pos.notes) {
+      try {
+        const notes = JSON.parse(pos.notes);
+        if (notes.price_data) {
+          return {
+            ...pos,
+            current_price: notes.price_data.current_price,
+            unrealized_pnl: notes.price_data.unrealized_pnl,
+            last_price_update: notes.price_data.last_updated
+          } as any;
+        }
+      } catch (e) {
+        // Failed to parse, return as-is
+      }
+    }
+    return pos;
+  });
 }
 
 /**
@@ -127,22 +157,21 @@ export function getPortfolioStats(): PortfolioStats {
     WHERE status = 'closed'
   `).get() as any;
   
-  // Get open positions stats
-  const openStats = dbConn.prepare(`
-    SELECT 
-      COUNT(*) as open_count,
-      SUM(size) as total_invested
-    FROM paper_positions
-    WHERE status = 'open'
-  `).get() as any;
+  // Get open positions with price data
+  const openPositions = getOpenPositions();
+  const openCount = openPositions.length;
+  
+  // Calculate unrealized P&L from price data in notes
+  let unrealizedPnl = 0;
+  for (const pos of openPositions) {
+    if ((pos as any).unrealized_pnl !== undefined) {
+      unrealizedPnl += (pos as any).unrealized_pnl;
+    }
+  }
   
   const totalTrades = closedStats.total_closed || 0;
-  const openPositions = openStats.open_count || 0;
   const realizedPnl = closedStats.realized_pnl || 0;
   const wins = closedStats.wins || 0;
-  
-  // For unrealized P&L, we'd need current prices - TODO: implement price fetching
-  const unrealizedPnl = 0; // Placeholder
   
   const STARTING_PORTFOLIO = 1000;
   const totalValue = STARTING_PORTFOLIO + realizedPnl + unrealizedPnl;
@@ -150,17 +179,20 @@ export function getPortfolioStats(): PortfolioStats {
   const roi = combinedPnl / STARTING_PORTFOLIO;
   const winRate = totalTrades > 0 ? wins / totalTrades : 0;
   
-  return {
+  const stats = {
     total_value: totalValue,
     realized_pnl: realizedPnl,
     unrealized_pnl: unrealizedPnl,
     combined_pnl: combinedPnl,
     total_trades: totalTrades,
-    open_positions: openPositions,
+    open_positions: openCount,
     closed_positions: totalTrades,
     win_rate: winRate,
     roi: roi
   };
+  
+  console.log('[Trading DB] Portfolio stats:', JSON.stringify(stats, null, 2));
+  return stats;
 }
 
 /**
