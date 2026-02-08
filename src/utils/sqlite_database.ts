@@ -38,7 +38,7 @@ function initializeSchema() {
   const db = getDatabase();
   
   // Check if table exists and needs migration
-  const tableInfo = db.pragma('table_info(trades)');
+  const tableInfo = db.pragma("table_info(trades)") as any[];
   const columns = tableInfo.map((col: any) => col.name);
   
   const hasOldSizeColumn = columns.includes('size');
