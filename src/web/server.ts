@@ -1084,11 +1084,12 @@ app.get('/', (req, res) => {
         pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Win Rate</div><div style="font-size:1.5rem;font-weight:700;color:' + winRateColor + ';">' + (winRate * 100).toFixed(0) + '%</div></div>';
         pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Total P&L</div><div style="font-size:1.5rem;font-weight:700;color:' + pnlColor + ';">$' + (paperStats.total_pnl || 0).toFixed(0) + '</div></div></div>';
         if (positions.length > 0) {
-          pHTML += '<table><thead><tr><th>Market</th><th>Direction</th><th>Entry</th><th>Current</th><th>P&L</th></tr></thead><tbody>';
+          pHTML += '<table><thead><tr><th>Market</th><th>Direction</th><th>Size</th><th>Entry</th><th>Current</th><th>P&L</th></tr></thead><tbody>';
           positions.slice(0, 5).forEach(pos => {
             const pnl = pos.unrealized_pnl || 0;
             pHTML += '<tr><td class="market-question">' + pos.market_question.substring(0, 60) + '...</td>';
             pHTML += '<td style="font-weight:700;color:' + (pos.direction === 'BUY' ? '#059669' : '#dc2626') + ';">' + pos.direction + ' ' + pos.outcome + '</td>';
+            pHTML += '<td class="price">$' + (pos.size || 50).toFixed(0) + '</td>';
             pHTML += '<td class="price">$' + pos.entry_price.toFixed(2) + '</td>';
             pHTML += '<td class="price">$' + (pos.current_price || pos.entry_price).toFixed(2) + '</td>';
             pHTML += '<td style="color:' + (pnl >= 0 ? '#059669' : '#dc2626') + ';font-weight:700;">$' + pnl.toFixed(0) + '</td></tr>';
