@@ -1088,15 +1088,29 @@ app.get('/', (req, res) => {
         pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Total P&L</div><div style="font-size:1.5rem;font-weight:700;color:' + pnlColor + ';">$' + combinedPnl.toFixed(0) + '</div>';
         pHTML += '<div style="color:#6b7280;font-size:0.75rem;margin-top:0.25rem;">Realized: $' + realizedPnl.toFixed(0) + ' | Unrealized: $' + unrealizedPnl.toFixed(0) + '</div></div></div>';
         if (positions.length > 0) {
-          pHTML += '<table><thead><tr><th>Market</th><th>Direction</th><th>Size</th><th>Entry</th><th>Current</th><th>P&L</th></tr></thead><tbody>';
-          positions.slice(0, 5).forEach(pos => {
+          pHTML += '<table><thead><tr><th>Market</th><th title="BUY = betting price will rise, SELL = betting price will fall">Direction</th><th>Size</th><th>Entry</th><th>Current</th><th>P&L</th><th>Why</th></tr></thead><tbody>';
+          positions.slice(0, 5).forEach((pos, idx) => {
             const pnl = pos.unrealized_pnl || 0;
-            pHTML += '<tr><td class="market-question">' + pos.market_question.substring(0, 60) + '...</td>';
-            pHTML += '<td style="font-weight:700;color:' + (pos.direction === 'BUY' ? '#059669' : '#dc2626') + ';">' + pos.direction + ' ' + pos.outcome + '</td>';
+            const marketUrl = 'https://polymarket.com/event/' + pos.market_slug;
+            const directionExplain = pos.direction === 'BUY' ? 'Betting price will rise' : 'Betting price will fall';
+            
+            // Parse reasoning from notes
+            let reasoning = 'No reasoning available';
+            try {
+              const notes = typeof pos.notes === 'string' ? JSON.parse(pos.notes) : pos.notes;
+              reasoning = notes.reasoning || reasoning;
+            } catch (e) {}
+            
+            pHTML += '<tr>';
+            pHTML += '<td class="market-question"><a href="' + marketUrl + '" target="_blank" style="color:#3b82f6;text-decoration:none;">' + pos.market_question.substring(0, 60) + '...</a></td>';
+            pHTML += '<td style="font-weight:700;color:' + (pos.direction === 'BUY' ? '#059669' : '#dc2626') + ';" title="' + directionExplain + '">' + pos.direction + ' ' + pos.outcome + '</td>';
             pHTML += '<td class="price">$' + (pos.size || 50).toFixed(0) + '</td>';
             pHTML += '<td class="price">$' + pos.entry_price.toFixed(2) + '</td>';
             pHTML += '<td class="price">$' + (pos.current_price || pos.entry_price).toFixed(2) + '</td>';
-            pHTML += '<td style="color:' + (pnl >= 0 ? '#059669' : '#dc2626') + ';font-weight:700;">$' + pnl.toFixed(0) + '</td></tr>';
+            pHTML += '<td style="color:' + (pnl >= 0 ? '#059669' : '#dc2626') + ';font-weight:700;">$' + pnl.toFixed(0) + '</td>';
+            pHTML += '<td><button onclick="document.getElementById(\\'reason-' + idx + '\\').style.display=document.getElementById(\\'reason-' + idx + '\\').style.display===\\'none\\'?\\'block\\':\\'none\\'" style="background:#3b82f6;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;">📊</button></td>';
+            pHTML += '</tr>';
+            pHTML += '<tr id="reason-' + idx + '" style="display:none;"><td colspan="7" style="background:#f9fafb;padding:0.75rem;font-size:0.875rem;color:#4b5563;border-left:3px solid #3b82f6;">' + reasoning + '</td></tr>';
           });
           pHTML += '</tbody></table>';
         } else { pHTML += '<div class="empty">No open positions</div>'; }
