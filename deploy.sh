@@ -31,3 +31,9 @@ echo "" | tee -a $LOGFILE
 
 echo "📊 Recent logs:" | tee -a $LOGFILE
 pm2 logs polymarket-dashboard --lines 20 --nostream 2>&1 | tee -a $LOGFILE
+
+# Inject version into built file
+echo "📌 Injecting version..."
+COMMIT=$(git log -1 --format="%h")
+sed -i "s/v[0-9a-f]\{7\}/v${COMMIT}/g" dist/web/server.js
+echo "   Version: v${COMMIT}"
