@@ -8,8 +8,14 @@ Alerts on Telegram for confidence ≥80%
 import json
 import sqlite3
 import requests
+import sys
+import os
 from datetime import datetime
 from pathlib import Path
+
+# Add scripts directory to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from market_filters import should_skip_market
 
 # Configuration
 SIGNALS_FILE = '/workspace/signals/aggregated-signals.json'
@@ -224,6 +230,12 @@ def process_signal(signal):
     outcome = ' '.join(signal['signal'].split()[1:])  # Rest is outcome
     price = signal['price']
     details = signal.get('details', {})
+    
+    # Filter out unwanted markets (past years, high-frequency, sports)
+    should_skip, skip_reason = should_skip_market(market_question, market_slug)
+    if should_skip:
+        print(f"⏭️  Skipping {market_slug} - {skip_reason}")
+        return None
     
     # Filter out high-frequency markets (too fast for ~30min heartbeat)
     # These markets expire before we can react effectively
