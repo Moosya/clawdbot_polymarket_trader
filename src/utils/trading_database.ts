@@ -6,7 +6,8 @@
 import Database from 'better-sqlite3';
 import * as path from 'path';
 
-const TRADING_DB_PATH = path.resolve(process.env.TRADING_DB_PATH || '/workspace/signals/trading.db');
+// Use shared data directory - on host: /opt/polymarket/data/trading.db
+const TRADING_DB_PATH = path.resolve(process.env.TRADING_DB_PATH || path.join(__dirname, '../../data/trading.db'));
 
 export interface Signal {
   id: number;
