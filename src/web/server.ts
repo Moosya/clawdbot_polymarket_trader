@@ -91,6 +91,7 @@ async function scanAllSignals() {
     const performance = calculateWalletPerformance(allTrades, positions);
     const topTraders = getTopTraders(performance, 5, 20);
 
+
     // Load trading signals
     let tradingSignals = { top_signals: [], whale_clusters: [], smart_money_divergence: [], momentum_reversals: [] } as any;
     const fs = require("fs");
@@ -98,9 +99,7 @@ async function scanAllSignals() {
     if (fs.existsSync(signalsPath)) {
       try {
         tradingSignals = JSON.parse(fs.readFileSync(signalsPath, "utf8"));
-      } catch (e) {
-        console.error("Error loading signals:", e);
-      }
+      } catch (e) { console.error("Error loading signals:", e); }
     }
 
     // Load paper trading stats
@@ -109,11 +108,8 @@ async function scanAllSignals() {
     if (fs.existsSync(positionsPath)) {
       try {
         paperTrading = JSON.parse(fs.readFileSync(positionsPath, "utf8"));
-      } catch (e) {
-        console.error("Error loading paper trading:", e);
-      }
+      } catch (e) { console.error("Error loading paper trading:", e); }
     }
-
     // Update cache
     latestData = {
       arbitrage,
@@ -675,6 +671,7 @@ app.get('/', (req, res) => {
       <div id="traders-list"></div>
     </div>
 
+
     <!-- Trading Signals Panel -->
     <div class="panel">
       <div class="panel-header">
@@ -682,7 +679,7 @@ app.get('/', (req, res) => {
         <span id="signals-badge" class="badge">0</span>
       </div>
       <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        High-confidence trading opportunities detected by ML algorithms. Only signals >= 80% confidence shown.
+        High-confidence trading opportunities. Only signals >= 80% confidence shown.
       </div>
       <div id="signals-list" class="panel-content">
         <div class="empty">Loading...</div>
@@ -696,7 +693,7 @@ app.get('/', (req, res) => {
         <span id="paper-badge" class="badge">0</span>
       </div>
       <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        Simulated positions to validate signal performance before risking real capital.
+        Simulated positions to validate signal performance.
       </div>
       <div id="paper-trading" class="panel-content">
         <div class="empty">Loading...</div>
@@ -943,7 +940,6 @@ app.get('/', (req, res) => {
           \`;
         }
         
-        // Update timestamp
 
         // Update trading signals
         const signalsList = document.getElementById('signals-list');
@@ -953,36 +949,18 @@ app.get('/', (req, res) => {
         if (signals.length === 0) {
           signalsList.innerHTML = '<div class="empty">No high-confidence signals detected</div>';
         } else {
-          signalsList.innerHTML = `
-            <table>
-              <thead>
-                <tr>
-                  <th>Signal Type</th>
-                  <th>Market</th>
-                  <th>Direction</th>
-                  <th>Confidence</th>
-                  <th>Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${signals.slice(0, 10).map(sig => {
-                  const emoji = sig.confidence >= 90 ? '🔥' : sig.confidence >= 80 ? '⚡' : '📊';
-                  const confColor = sig.confidence >= 90 ? '#059669' : sig.confidence >= 80 ? '#d97706' : '#6b7280';
-                  const typeLabel = sig.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                  
-                  return `
-                    <tr class="${sig.confidence >= 85 ? 'highlight' : ''}">
-                      <td style="font-weight: 600;">${emoji} ${typeLabel}</td>
-                      <td class="market-question">${sig.market_question}</td>
-                      <td style="font-weight: 700; color: ${sig.signal.includes('BUY') ? '#059669' : '#dc2626'};">${sig.signal}</td>
-                      <td style="color: ${confColor}; font-weight: 700;">${sig.confidence}%</td>
-                      <td class="price">$${sig.price.toFixed(2)}</td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          `;
+          let html = '<table><thead><tr><th>Signal Type</th><th>Market</th><th>Direction</th><th>Confidence</th><th>Price</th></tr></thead><tbody>';
+          signals.slice(0, 10).forEach(sig => {
+            const emoji = sig.confidence >= 90 ? '🔥' : sig.confidence >= 80 ? '⚡' : '📊';
+            const confColor = sig.confidence >= 90 ? '#059669' : sig.confidence >= 80 ? '#d97706' : '#6b7280';
+            html += '<tr class="' + (sig.confidence >= 85 ? 'highlight' : '') + '">';
+            html += '<td style="font-weight:600;">' + emoji + ' ' + sig.type.replace(/_/g, ' ') + '</td>';
+            html += '<td class="market-question">' + sig.market_question + '</td>';
+            html += '<td style="font-weight:700;color:' + (sig.signal.includes('BUY') ? '#059669' : '#dc2626') + ';">' + sig.signal + '</td>';
+            html += '<td style="color:' + confColor + ';font-weight:700;">' + sig.confidence + '%</td>';
+            html += '<td class="price">$' + sig.price.toFixed(2) + '</td></tr>';
+          });
+          signalsList.innerHTML = html + '</tbody></table>';
         }
 
         // Update paper trading
@@ -990,56 +968,28 @@ app.get('/', (req, res) => {
         const paperStats = data.paperTrading?.stats || {};
         const positions = data.paperTrading?.positions || [];
         document.getElementById('paper-badge').textContent = positions.length;
-
         const winRate = paperStats.win_rate || 0;
         const winRateColor = winRate >= 0.6 ? '#059669' : winRate >= 0.4 ? '#d97706' : '#dc2626';
         const pnlColor = (paperStats.total_pnl || 0) >= 0 ? '#059669' : '#dc2626';
+        let pHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem;">';
+        pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Total Trades</div><div style="font-size:1.5rem;font-weight:700;">' + (paperStats.total_trades || 0) + '</div></div>';
+        pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Win Rate</div><div style="font-size:1.5rem;font-weight:700;color:' + winRateColor + ';">' + (winRate * 100).toFixed(0) + '%</div></div>';
+        pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Total P&L</div><div style="font-size:1.5rem;font-weight:700;color:' + pnlColor + ';">$' + (paperStats.total_pnl || 0).toFixed(0) + '</div></div></div>';
+        if (positions.length > 0) {
+          pHTML += '<table><thead><tr><th>Market</th><th>Direction</th><th>Entry</th><th>Current</th><th>P&L</th></tr></thead><tbody>';
+          positions.slice(0, 5).forEach(pos => {
+            const pnl = pos.unrealized_pnl || 0;
+            pHTML += '<tr><td class="market-question">' + pos.market_question.substring(0, 60) + '...</td>';
+            pHTML += '<td style="font-weight:700;color:' + (pos.direction === 'BUY' ? '#059669' : '#dc2626') + ';">' + pos.direction + ' ' + pos.outcome + '</td>';
+            pHTML += '<td class="price">$' + pos.entry_price.toFixed(2) + '</td>';
+            pHTML += '<td class="price">$' + (pos.current_price || pos.entry_price).toFixed(2) + '</td>';
+            pHTML += '<td style="color:' + (pnl >= 0 ? '#059669' : '#dc2626') + ';font-weight:700;">$' + pnl.toFixed(0) + '</td></tr>';
+          });
+          pHTML += '</tbody></table>';
+        } else { pHTML += '<div class="empty">No open positions</div>'; }
+        paperTrading.innerHTML = pHTML;
 
-        paperTrading.innerHTML = `
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
-            <div style="text-align: center;">
-              <div style="color: #6b7280; font-size: 0.875rem;">Total Trades</div>
-              <div style="font-size: 1.5rem; font-weight: 700;">${paperStats.total_trades || 0}</div>
-            </div>
-            <div style="text-align: center;">
-              <div style="color: #6b7280; font-size: 0.875rem;">Win Rate</div>
-              <div style="font-size: 1.5rem; font-weight: 700; color: ${winRateColor};">${(winRate * 100).toFixed(0)}%</div>
-            </div>
-            <div style="text-align: center;">
-              <div style="color: #6b7280; font-size: 0.875rem;">Total P&L</div>
-              <div style="font-size: 1.5rem; font-weight: 700; color: ${pnlColor};">$${(paperStats.total_pnl || 0).toFixed(0)}</div>
-            </div>
-          </div>
-          ${positions.length > 0 ? `
-            <table>
-              <thead>
-                <tr>
-                  <th>Market</th>
-                  <th>Direction</th>
-                  <th>Entry</th>
-                  <th>Current</th>
-                  <th>P&L</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${positions.slice(0, 5).map(pos => {
-                  const pnl = pos.unrealized_pnl || 0;
-                  const pnlColor = pnl >= 0 ? '#059669' : '#dc2626';
-                  
-                  return `
-                    <tr>
-                      <td class="market-question">${pos.market_question.substring(0, 60)}...</td>
-                      <td style="font-weight: 700; color: ${pos.direction === 'BUY' ? '#059669' : '#dc2626'};">${pos.direction} ${pos.outcome}</td>
-                      <td class="price">$${pos.entry_price.toFixed(2)}</td>
-                      <td class="price">$${(pos.current_price || pos.entry_price).toFixed(2)}</td>
-                      <td style="color: ${pnlColor}; font-weight: 700;">$${pnl.toFixed(0)}</td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          ` : '<div class="empty">No open positions</div>'}
-        `;
+        // Update timestamp
         document.getElementById('last-update').textContent = new Date(data.lastUpdate).toLocaleString();
         
       } catch (error) {
