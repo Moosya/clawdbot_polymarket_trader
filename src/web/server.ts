@@ -1091,14 +1091,15 @@ app.get('/', (req, res) => {
           pHTML += '<table><thead><tr><th>Market</th><th title="BUY = betting price will rise, SELL = betting price will fall">Direction</th><th>Size</th><th>Entry</th><th>Current</th><th>P&L</th><th>Why</th></tr></thead><tbody>';
           positions.slice(0, 5).forEach((pos, idx) => {
             const pnl = pos.unrealized_pnl || 0;
-            const marketUrl = 'https://polymarket.com/event/' + pos.market_slug;
             const directionExplain = pos.direction === 'BUY' ? 'Betting price will rise' : 'Betting price will fall';
             
-            // Parse reasoning from notes
+            // Parse reasoning and event_url from notes
             let reasoning = 'No reasoning available';
+            let marketUrl = 'https://polymarket.com/search?q=' + encodeURIComponent(pos.market_question.substring(0, 50));
             try {
               const notes = typeof pos.notes === 'string' ? JSON.parse(pos.notes) : pos.notes;
               reasoning = notes.reasoning || reasoning;
+              marketUrl = notes.event_url || marketUrl;  // Use event_url if available, otherwise search
             } catch (e) {}
             
             pHTML += '<tr>';
