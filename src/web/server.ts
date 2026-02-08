@@ -41,7 +41,7 @@ let latestData = {
   whaleTrades: [] as any[],
   topTraders: [] as any[],
   tradingSignals: { top_signals: [], whale_clusters: [], smart_money_divergence: [], momentum_reversals: [] } as any,
-  paperTrading: { positions: [], closed_positions: [], stats: { total_trades: 0, wins: 0, losses: 0, total_pnl: 0, roi: 0 } } as any,
+  paperTrading: { positions: [], closedPositions: [], stats: { total_trades: 0, wins: 0, losses: 0, total_pnl: 0, total_value: 1000, roi: 0, win_rate: 0, open_positions: 0, closed_positions: 0 } } as any,
   lastUpdate: new Date().toISOString(),
   scanCount: 0,
 };
@@ -72,7 +72,18 @@ async function scanAllSignals() {
     }
 
     // Scan for volume spikes
-    const volumeSpikes = await volumeDetector.scanForSpikes();
+    const allVolumeSpikes = await volumeDetector.scanForSpikes();
+    
+    // Filter out sports markets (no information edge for whales)
+    const sportsPatterns = ['nba', 'nfl', 'nhl', 'mlb', 'super bowl', 'stanley cup', 
+                            'world cup', 'premier league', 'champions league',
+                            ' vs ', ' vs. ', 'seahawks', 'patriots', 'lakers', 
+                            'finals?', 'semifinal', 'championship'];
+    
+    const volumeSpikes = allVolumeSpikes.filter(spike => {
+      const questionLower = spike.question.toLowerCase();
+      return !sportsPatterns.some(pattern => questionLower.includes(pattern));
+    });
 
     // Scan for new markets
     const newMarkets = await newMarketMonitor.scanForNewMarkets();
@@ -560,6 +571,28 @@ app.get('/', (req, res) => {
       padding: 10px;
       margin-bottom: 10px;
     }
+    .section.collapsible .section-title {
+      cursor: pointer;
+      user-select: none;
+    }
+    .section.collapsible .section-title:hover {
+      background: #f3f4f6;
+      margin: -10px -10px 8px -10px;
+      padding: 10px;
+      border-radius: 4px 4px 0 0;
+    }
+    .section.collapsed .section-content {
+      display: none;
+    }
+    .collapse-icon {
+      margin-left: auto;
+      font-size: 0.8em;
+      color: #9ca3af;
+      transition: transform 0.2s;
+    }
+    .section.collapsed .collapse-icon {
+      transform: rotate(-90deg);
+    }
     .section-title {
       font-size: 1em;
       margin-bottom: 8px;
@@ -696,49 +729,61 @@ app.get('/', (req, res) => {
     </div>
 
     <!-- Volume Spikes Section -->
-    <div class="section">
-      <div class="section-title">
+    <div class="section collapsible collapsed" id="volume-section">
+      <div class="section-title" onclick="toggleSection('volume-section')">
         🔥 Volume Spikes
         <span class="badge orange" id="volume-badge">0</span>
+        <span class="collapse-icon">▼</span>
       </div>
-      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        Markets with unusually high 24hr volume compared to 7-day average. High volume = new information entering market.
+      <div class="section-content">
+        <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
+          Markets with unusually high 24hr volume compared to 7-day average (non-sports, ≥$5K avg). High volume = new information entering market.
+        </div>
+        <div id="volume-list"></div>
       </div>
-      <div id="volume-list"></div>
-    </div>
-
-    <!-- New Markets Section -->
-    <div class="section">
-      <div class="section-title">
-        🆕 New Markets
-        <span class="badge blue" id="new-badge">0</span>
-      </div>
-      <div id="new-markets-list"></div>
     </div>
 
     <!-- Whale Trades Section -->
-    <div class="section">
-      <div class="section-title">
+    <div class="section collapsible collapsed" id="whale-section">
+      <div class="section-title" onclick="toggleSection('whale-section')">
         🐋 Whale Trades (>$1000)
         <span class="badge" style="background: #8b5cf6; color: white;" id="whale-badge">0</span>
+        <span class="collapse-icon">▼</span>
       </div>
-      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        Large trades from the last 2 minutes. BUY (green) = bullish, SELL (red) = bearish. Multiple whales buying = strong signal.
+      <div class="section-content">
+        <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
+          Large trades from the last 2 minutes. BUY (green) = bullish, SELL (red) = bearish. Multiple whales buying = strong signal.
+        </div>
+        <div id="whale-list"></div>
       </div>
-      <div id="whale-list"></div>
+    </div>
+
+    <!-- New Markets Section -->
+    <div class="section collapsible collapsed" id="newmarkets-section">
+      <div class="section-title" onclick="toggleSection('newmarkets-section')">
+        🆕 New Markets
+        <span class="badge blue" id="new-badge">0</span>
+        <span class="collapse-icon">▼</span>
+      </div>
+      <div class="section-content">
+        <div id="new-markets-list"></div>
+      </div>
     </div>
 
     <!-- Top Traders Section -->
-    <div class="section">
-      <div class="section-title">
+    <div class="section collapsible collapsed" id="traders-section">
+      <div class="section-title" onclick="toggleSection('traders-section')">
         💎 Top Profitable Traders (Min 5 trades)
         <span class="badge" style="background: #10b981; color: white;" id="traders-badge">0</span>
+        <span class="collapse-icon">▼</span>
       </div>
+      <div class="section-content">
       <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
         Ranked by total P&L (profit/loss). ROI = profit efficiency. Win Rate = % of closed positions that were profitable. Green = profitable, Red = losing.
         <br><strong>Note:</strong> Requires traders to have closed positions (bought AND sold). May take 24-48h to accumulate data.
       </div>
       <div id="traders-list"></div>
+      </div>
     </div>
 
     <!-- Arbitrage Section (Low Priority - Usually Empty) -->
@@ -763,6 +808,12 @@ app.get('/', (req, res) => {
   </div>
 
   <script>
+    // Toggle collapsible sections
+    function toggleSection(sectionId) {
+      const section = document.getElementById(sectionId);
+      section.classList.toggle('collapsed');
+    }
+    
     // Format large numbers as K/M
     function formatVolume(num) {
       if (num >= 1000000) {
