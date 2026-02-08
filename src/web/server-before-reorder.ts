@@ -21,7 +21,6 @@ import {
   migrateFromJSON 
 } from '../utils/sqlite_database';
 import { calculatePositions, calculateWalletPerformance, getTopTraders } from '../strategies/position_tracker';
-import { getTradingDashboardData, getRecentSignals, getOpenPositions, getPortfolioStats } from '../utils/trading_database';
 
 dotenv.config();
 
@@ -93,7 +92,7 @@ async function scanAllSignals() {
     const topTraders = getTopTraders(performance, 5, 20);
 
 
-    // Load trading signals from aggregated file (still JSON for now)
+    // Load trading signals
     let tradingSignals = { top_signals: [], whale_clusters: [], smart_money_divergence: [], momentum_reversals: [] } as any;
     const fs = require("fs");
     const signalsPath = "/workspace/signals/aggregated-signals.json";
@@ -103,18 +102,13 @@ async function scanAllSignals() {
       } catch (e) { console.error("Error loading signals:", e); }
     }
 
-    // Load paper trading from SQLite database (NEW)
-    let paperTrading = { positions: [], closedPositions: [], stats: {} } as any;
-    try {
-      const tradingData = getTradingDashboardData();
-      paperTrading = {
-        signals: tradingData.signals,
-        positions: tradingData.openPositions,
-        closedPositions: tradingData.closedPositions,
-        stats: tradingData.stats
-      };
-    } catch (e) { 
-      console.error("Error loading trading database:", e); 
+    // Load paper trading stats
+    let paperTrading = { positions: [], closed_positions: [], stats: { total_trades: 0, wins: 0, losses: 0, total_pnl: 0, roi: 0 } } as any;
+    const positionsPath = "/workspace/signals/paper-positions.json";
+    if (fs.existsSync(positionsPath)) {
+      try {
+        paperTrading = JSON.parse(fs.readFileSync(positionsPath, "utf8"));
+      } catch (e) { console.error("Error loading paper trading:", e); }
     }
     // Update cache
     latestData = {
@@ -138,51 +132,6 @@ async function scanAllSignals() {
 // API endpoint for latest data
 app.get('/api/signals', (req, res) => {
   res.json(latestData);
-});
-
-// NEW: Trading dashboard data (signals + positions + P&L)
-app.get('/api/trading', (req, res) => {
-  try {
-    const data = getTradingDashboardData();
-    res.json(data);
-  } catch (error) {
-    console.error('Error fetching trading data:', error);
-    res.status(500).json({ error: 'Failed to fetch trading data' });
-  }
-});
-
-// NEW: Recent high-confidence signals only
-app.get('/api/trading/signals', (req, res) => {
-  try {
-    const minConfidence = parseInt(req.query.minConfidence as string) || 70;
-    const signals = getRecentSignals(minConfidence, 50);
-    res.json({ signals });
-  } catch (error) {
-    console.error('Error fetching signals:', error);
-    res.status(500).json({ error: 'Failed to fetch signals' });
-  }
-});
-
-// NEW: Open paper positions
-app.get('/api/trading/positions', (req, res) => {
-  try {
-    const positions = getOpenPositions();
-    res.json({ positions });
-  } catch (error) {
-    console.error('Error fetching positions:', error);
-    res.status(500).json({ error: 'Failed to fetch positions' });
-  }
-});
-
-// NEW: Portfolio stats
-app.get('/api/trading/stats', (req, res) => {
-  try {
-    const stats = getPortfolioStats();
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching portfolio stats:', error);
-    res.status(500).json({ error: 'Failed to fetch stats' });
-  }
 });
 
 // API endpoint for operational stats
@@ -667,32 +616,13 @@ app.get('/', (req, res) => {
       </div>
     </div>
 
-    <!-- Trading Signals Panel -->
-    <div class="panel">
-      <div class="panel-header">
-        <h2>🎯 Trading Signals</h2>
-        <span id="signals-badge" class="badge">0</span>
+    <!-- Arbitrage Section -->
+    <div class="section">
+      <div class="section-title">
+        💰 Arbitrage Opportunities
+        <span class="badge green" id="arb-badge">0</span>
       </div>
-      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        High-confidence trading opportunities. Only signals >= 80% confidence shown.
-      </div>
-      <div id="signals-list" class="panel-content">
-        <div class="empty">Loading...</div>
-      </div>
-    </div>
-
-    <!-- Paper Trading Panel -->
-    <div class="panel">
-      <div class="panel-header">
-        <h2>💰 Paper Trading</h2>
-        <span id="paper-badge" class="badge">0</span>
-      </div>
-      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        Simulated positions to validate signal performance.
-      </div>
-      <div id="paper-trading" class="panel-content">
-        <div class="empty">Loading...</div>
-      </div>
+      <div id="arbitrage-list"></div>
     </div>
 
     <!-- Volume Spikes Section -->
@@ -741,24 +671,37 @@ app.get('/', (req, res) => {
       <div id="traders-list"></div>
     </div>
 
-    <!-- Arbitrage Section (Low Priority - Usually Empty) -->
-    <div class="section">
-      <div class="section-title">
-        💰 Arbitrage Opportunities
-        <span class="badge green" id="arb-badge">0</span>
+
+    <!-- Trading Signals Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>🎯 Trading Signals</h2>
+        <span id="signals-badge" class="badge">0</span>
       </div>
       <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        Same-market arbitrage (rare). Moved to bottom since rarely triggers.
+        High-confidence trading opportunities. Only signals >= 80% confidence shown.
       </div>
-      <div id="arbitrage-list">
-        <div class="empty">No arbitrage opportunities found</div>
+      <div id="signals-list" class="panel-content">
+        <div class="empty">Loading...</div>
       </div>
     </div>
 
+    <!-- Paper Trading Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>💰 Paper Trading</h2>
+        <span id="paper-badge" class="badge">0</span>
+      </div>
+      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
+        Simulated positions to validate signal performance.
+      </div>
+      <div id="paper-trading" class="panel-content">
+        <div class="empty">Loading...</div>
+      </div>
     </div>
 
     <div class="last-update">
-      Last updated: <span id="last-update">-</span> | <span style="color: #9ca3af; font-size: 0.9em;">v7d7f4f4</span>
+      Last updated: <span id="last-update">-</span>
     </div>
   </div>
 

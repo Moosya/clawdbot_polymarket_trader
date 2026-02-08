@@ -149,6 +149,12 @@ export class VolumeSpikeDetector {
           continue;
         }
 
+        // Skip markets with low average volume (< $5K daily)
+        // Spikes on low-volume markets are noise, not signal
+        if (avgVolume < 5000) {
+          continue;
+        }
+
         // Check for spike
         const spikeMultiplier = volume24hr / avgVolume;
         const percentIncrease = ((volume24hr - avgVolume) / avgVolume) * 100;
