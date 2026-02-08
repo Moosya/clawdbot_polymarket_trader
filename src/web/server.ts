@@ -1078,11 +1078,15 @@ app.get('/', (req, res) => {
         document.getElementById('paper-badge').textContent = positions.length;
         const winRate = paperStats.win_rate || 0;
         const winRateColor = winRate >= 0.6 ? '#059669' : winRate >= 0.4 ? '#d97706' : '#dc2626';
-        const pnlColor = (paperStats.total_pnl || 0) >= 0 ? '#059669' : '#dc2626';
+        const combinedPnl = paperStats.combined_pnl || 0;
+        const realizedPnl = paperStats.realized_pnl || 0;
+        const unrealizedPnl = paperStats.unrealized_pnl || 0;
+        const pnlColor = combinedPnl >= 0 ? '#059669' : '#dc2626';
         let pHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem;">';
         pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Total Trades</div><div style="font-size:1.5rem;font-weight:700;">' + (paperStats.total_trades || 0) + '</div></div>';
         pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Win Rate</div><div style="font-size:1.5rem;font-weight:700;color:' + winRateColor + ';">' + (winRate * 100).toFixed(0) + '%</div></div>';
-        pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Total P&L</div><div style="font-size:1.5rem;font-weight:700;color:' + pnlColor + ';">$' + (paperStats.total_pnl || 0).toFixed(0) + '</div></div></div>';
+        pHTML += '<div style="text-align:center;"><div style="color:#6b7280;font-size:0.875rem;">Total P&L</div><div style="font-size:1.5rem;font-weight:700;color:' + pnlColor + ';">$' + combinedPnl.toFixed(0) + '</div>';
+        pHTML += '<div style="color:#6b7280;font-size:0.75rem;margin-top:0.25rem;">Realized: $' + realizedPnl.toFixed(0) + ' | Unrealized: $' + unrealizedPnl.toFixed(0) + '</div></div></div>';
         if (positions.length > 0) {
           pHTML += '<table><thead><tr><th>Market</th><th>Direction</th><th>Size</th><th>Entry</th><th>Current</th><th>P&L</th></tr></thead><tbody>';
           positions.slice(0, 5).forEach(pos => {
