@@ -126,7 +126,7 @@ export class SignalLogger {
    */
   static marketSnapshot(markets: Array<{name: string, volume: number, liquidity: number, volatility?: number}>): void {
     this.log({
-      type: 'MARKET_SNAPSHOT',
+      type: 'SIGNAL',
       count: markets.length,
       top_markets: markets.slice(0, 10)
     });
