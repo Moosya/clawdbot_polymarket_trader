@@ -1,6 +1,17 @@
 #!/bin/bash
 set -e
 
+# Safety check: must run as clawdbot (UID 1000)
+if [ "$(id -u)" -ne 1000 ]; then
+  echo "❌ ERROR: This script must be run as clawdbot (UID 1000)"
+  echo "   Current user: $(whoami) (UID $(id -u))"
+  echo ""
+  echo "   Run this instead:"
+  echo "   sudo -u clawdbot /opt/polymarket/deploy.sh"
+  echo ""
+  exit 1
+fi
+
 LOGFILE="/opt/polymarket/logs/last_deployment.log"
 
 echo "🚀 Deploying Polymarket Dashboard..." | tee $LOGFILE
