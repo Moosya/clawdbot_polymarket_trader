@@ -616,6 +616,34 @@ app.get('/', (req, res) => {
       </div>
     </div>
 
+    <!-- Trading Signals Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>🎯 Trading Signals</h2>
+        <span id="signals-badge" class="badge">0</span>
+      </div>
+      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
+        High-confidence trading opportunities. Only signals >= 80% confidence shown.
+      </div>
+      <div id="signals-list" class="panel-content">
+        <div class="empty">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Paper Trading Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>💰 Paper Trading</h2>
+        <span id="paper-badge" class="badge">0</span>
+      </div>
+      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
+        Simulated positions to validate signal performance.
+      </div>
+      <div id="paper-trading" class="panel-content">
+        <div class="empty">Loading...</div>
+      </div>
+    </div>
+
     <!-- Arbitrage Section -->
     <div class="section">
       <div class="section-title">
@@ -672,18 +700,6 @@ app.get('/', (req, res) => {
     </div>
 
 
-    <!-- Trading Signals Panel -->
-    <div class="panel">
-      <div class="panel-header">
-        <h2>🎯 Trading Signals</h2>
-        <span id="signals-badge" class="badge">0</span>
-      </div>
-      <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        High-confidence trading opportunities. Only signals >= 80% confidence shown.
-      </div>
-      <div id="signals-list" class="panel-content">
-        <div class="empty">Loading...</div>
-      </div>
     </div>
 
     <!-- Paper Trading Panel -->
