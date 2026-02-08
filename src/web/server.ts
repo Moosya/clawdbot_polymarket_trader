@@ -717,7 +717,7 @@ app.get('/', (req, res) => {
     </div>
 
     <div class="last-update">
-      Last updated: <span id="last-update">-</span> | <span style="color: #9ca3af; font-size: 0.9em;">vb6b14b8</span>
+      Last updated: <span id="last-update">-</span> | <span style="color: #9ca3af; font-size: 0.9em;">v7d7f4f4</span>
     </div>
   </div>
 
