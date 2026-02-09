@@ -2,15 +2,24 @@
 # Watchdog script to ensure position monitor daemon is running
 # Call from cron every 5-10 minutes
 
-DAEMON_SCRIPT="/workspace/scripts/position-monitor-daemon.py"
-LOG_FILE="/workspace/logs/position-monitor.log"
-PID_FILE="/workspace/runtime/position-monitor.pid"
+# Detect base directory (container vs host)
+if [ -d "/opt/polymarket" ]; then
+    BASE_DIR="/opt/polymarket"
+else
+    BASE_DIR="/workspace"
+fi
+
+DAEMON_SCRIPT="$BASE_DIR/scripts/position-monitor-daemon.py"
+CONTROL_SCRIPT="$BASE_DIR/scripts/monitor-control.sh"
+HEALTH_CHECK="$BASE_DIR/scripts/check-monitor-health.sh"
+LOG_FILE="$BASE_DIR/logs/position-monitor.log"
+PID_FILE="$BASE_DIR/runtime/position-monitor.pid"
 
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")"
 
 # Check health
-if /workspace/scripts/check-monitor-health.sh > /dev/null 2>&1; then
+if "$HEALTH_CHECK" > /dev/null 2>&1; then
     # Daemon is healthy
     exit 0
 fi
@@ -36,7 +45,7 @@ nohup python3 "$DAEMON_SCRIPT" >> "$LOG_FILE" 2>&1 &
 sleep 2
 
 # Verify it started
-if /workspace/scripts/check-monitor-health.sh >> "$LOG_FILE" 2>&1; then
+if "$HEALTH_CHECK" >> "$LOG_FILE" 2>&1; then
     echo "[$(date -Iseconds)] ✅ Daemon restarted successfully" >> "$LOG_FILE"
     exit 0
 else

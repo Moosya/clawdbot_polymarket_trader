@@ -1,9 +1,17 @@
 #!/bin/bash
 # Control script for position monitor daemon
 
-DAEMON_SCRIPT="/workspace/scripts/position-monitor-daemon.py"
-LOG_FILE="/workspace/logs/position-monitor.log"
-PID_FILE="/workspace/runtime/position-monitor.pid"
+# Detect base directory (container vs host)
+if [ -d "/opt/polymarket" ]; then
+    BASE_DIR="/opt/polymarket"
+else
+    BASE_DIR="/workspace"
+fi
+
+DAEMON_SCRIPT="$BASE_DIR/scripts/position-monitor-daemon.py"
+HEALTH_CHECK="$BASE_DIR/scripts/check-monitor-health.sh"
+LOG_FILE="$BASE_DIR/logs/position-monitor.log"
+PID_FILE="$BASE_DIR/runtime/position-monitor.pid"
 
 case "$1" in
     start)
@@ -20,6 +28,7 @@ case "$1" in
         
         echo "🚀 Starting position monitor daemon..."
         mkdir -p "$(dirname "$LOG_FILE")"
+        mkdir -p "$(dirname "$PID_FILE")"
         nohup python3 "$DAEMON_SCRIPT" >> "$LOG_FILE" 2>&1 &
         sleep 2
         
@@ -69,7 +78,7 @@ case "$1" in
         ;;
         
     status)
-        /workspace/scripts/check-monitor-health.sh
+        "$HEALTH_CHECK"
         exit $?
         ;;
         

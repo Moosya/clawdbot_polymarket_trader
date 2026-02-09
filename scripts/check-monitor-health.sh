@@ -3,8 +3,15 @@
 # Returns 0 if healthy, 1 if unhealthy
 # Can be run from cron to restart daemon if needed
 
-HEARTBEAT_FILE="/workspace/runtime/position-monitor-heartbeat.json"
-PID_FILE="/workspace/runtime/position-monitor.pid"
+# Detect base directory (container vs host)
+if [ -d "/opt/polymarket" ]; then
+    BASE_DIR="/opt/polymarket"
+else
+    BASE_DIR="/workspace"
+fi
+
+HEARTBEAT_FILE="$BASE_DIR/runtime/position-monitor-heartbeat.json"
+PID_FILE="$BASE_DIR/runtime/position-monitor.pid"
 MAX_AGE=900  # 15 minutes (3x check interval)
 
 # Check if heartbeat file exists
@@ -14,7 +21,7 @@ if [ ! -f "$HEARTBEAT_FILE" ]; then
 fi
 
 # Check heartbeat age
-last_check=$(jq -r '.last_check // 0' "$HEARTBEAT_FILE")
+last_check=$(jq -r '.last_check // 0' "$HEARTBEAT_FILE" 2>/dev/null || echo "0")
 now=$(date +%s)
 age=$((now - last_check))
 
