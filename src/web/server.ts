@@ -1153,6 +1153,13 @@ app.get('/', (req, res) => {
   `);
 });
 
+
+// Serve calibration mockup
+app.get('/calibration-mockup', (req, res) => {
+  const path = require('path');
+  const mockupPath = path.join(__dirname, '../../calibration-panel-mockup.html');
+  res.sendFile(mockupPath);
+});
 // Start server
 async function start() {
   console.log('🦀 Polymarket Trading Dashboard\n');
@@ -1186,3 +1193,4 @@ start().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
+
