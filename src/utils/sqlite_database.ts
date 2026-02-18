@@ -292,6 +292,14 @@ export function migrateFromJSON(jsonFilePath: string): number {
     const migrated = trades.filter(t => t.sizeUsd >= MIN_TRADE_SIZE).length;
     console.log(`✅ Migration complete: ${migrated} trades imported (${trades.length - migrated} skipped <$${MIN_TRADE_SIZE})`);
     
+    // Delete JSON file after successful migration (one-time operation)
+    try {
+      fs.unlinkSync(jsonFilePath);
+      console.log(`🗑️  Deleted ${jsonFilePath} (migration complete)`);
+    } catch (err) {
+      console.warn(`⚠️  Could not delete ${jsonFilePath}:`, err);
+    }
+    
     return migrated;
   } catch (error) {
     console.error('Migration failed:', error);
