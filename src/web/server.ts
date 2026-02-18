@@ -94,8 +94,8 @@ async function scanAllSignals() {
       storeTrades(recentTrades);
     }
 
-    // Get whale trades (>= $2000) from database
-    const whaleTrades = getWhaleTrades(2000, 100);
+    // Get whale trades (>= $100) from database
+    const whaleTrades = getWhaleTrades(100, 100);
 
     // Calculate positions and top traders
     const allTrades = readTrades();

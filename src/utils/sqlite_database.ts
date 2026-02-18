@@ -11,7 +11,7 @@ import type { TradeFeedTrade } from '../api/trade_feed';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'trades.db');
-const MIN_TRADE_SIZE = 2000; // $2,000 minimum
+const MIN_TRADE_SIZE = 100; // $100 minimum
 
 // Ensure data directory exists
 function ensureDataDir() {
