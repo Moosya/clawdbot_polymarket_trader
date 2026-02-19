@@ -7,11 +7,15 @@ Run this periodically (every 5-10 minutes) to keep dashboard updated
 
 import sqlite3
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
-TRADING_DB = '/workspace/polymarket_runtime/data/trading.db'
-TRADES_DB = '/workspace/polymarket_runtime/data/trades.db'
+# Use environment variable or relative path for production compatibility
+# Production: /opt/polymarket/data/trading.db  
+# Sandbox: /workspace/polymarket_runtime/data/trading.db
+TRADING_DB = os.getenv('TRADING_DB_PATH', os.path.join(os.getcwd(), 'data', 'trading.db'))
+TRADES_DB = os.getenv('TRADES_DB_PATH', os.path.join(os.getcwd(), 'data', 'trades.db'))
 
 def get_current_price(market_slug, outcome):
     """Get latest price from trades database"""
