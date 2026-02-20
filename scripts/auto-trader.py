@@ -10,12 +10,25 @@ import sqlite3
 import requests
 import sys
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Add scripts directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from market_filters import should_skip_market
+
+
+# Load environment variables from .env file
+def load_env_file(env_path='/workspace/.env'):
+    if os.path.exists(env_path):
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+
+load_env_file()
 
 # Configuration
 SIGNALS_FILE = '/workspace/signals/aggregated-signals.json'
@@ -24,6 +37,22 @@ POSITION_SIZE = 50  # $50 per trade (5% of $1000 portfolio)
 AUTO_TRADE_THRESHOLD = 70  # Auto-trade on ≥70% confidence
 ALERT_THRESHOLD = 80  # Alert on Telegram for ≥80%
 MISSION_CONTROL_API = 'http://localhost:3001/api/activities'
+
+def translate_to_polymarket_action(signal_action, outcome):
+    """
+    Translate detector signal into Polymarket action.
+    Polymarket doesn't support shorting - you can only BUY Yes or BUY No.
+    To bet against an outcome, you BUY the opposite outcome.
+    """
+    if signal_action == 'BUY':
+        return ('BUY', outcome)
+    elif signal_action == 'SELL':
+        # Bet against this outcome = BUY the opposite
+        opposite = 'Yes' if outcome == 'No' else 'No'
+        return ('BUY', opposite)
+    else:
+        return ('BUY', outcome)  # Default to BUY
+
 
 def load_signals():
     """Load aggregated signals from file"""
@@ -46,7 +75,6 @@ def check_market_timing(event_slug):
             if events and len(events) > 0:
                 end_date = events[0].get('endDate')
                 if end_date:
-                    from datetime import datetime, timezone
                     end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
                     now = datetime.now(timezone.utc)
                     days_until = (end_dt - now).days
@@ -158,7 +186,6 @@ def open_position(signal_id, signal_type, confidence, market_slug, market_questi
                     
                     # Calculate days until close
                     if event.get('endDate'):
-                        from datetime import datetime, timezone
                         end_dt = datetime.fromisoformat(event['endDate'].replace('Z', '+00:00'))
                         days_until = (end_dt - datetime.now(timezone.utc)).days
                         notes_obj['days_until_close'] = days_until
@@ -226,8 +253,11 @@ def process_signal(signal):
     confidence = signal['confidence']
     market_slug = signal['market_slug']
     market_question = signal['market_question']
-    direction = signal['signal'].split()[0]  # BUY or SELL
-    outcome = ' '.join(signal['signal'].split()[1:])  # Rest is outcome
+    # Parse signal and translate to Polymarket action (BUY only)
+    signal_parts = signal['signal'].split()
+    raw_action = signal_parts[0]  # BUY or SELL from detector
+    raw_outcome = ' '.join(signal_parts[1:])  # Rest is outcome
+    direction, outcome = translate_to_polymarket_action(raw_action, raw_outcome)
     price = signal['price']
     details = signal.get('details', {})
     
@@ -240,13 +270,28 @@ def process_signal(signal):
     # Filter out high-frequency markets (too fast for ~30min heartbeat)
     # These markets expire before we can react effectively
     high_freq_patterns = [
-        'btc-updown-15m',  # Bitcoin 15-min markets
+        # Time-based patterns (any asset)
         '15 min',
         '15min',
         '5 min',
         '5min',
         '10 min',
-        '10min'
+        '10min',
+        '1 hour',
+        '1hr',
+        '1h',
+        '30 min',
+        '30min',
+        '2 hour',
+        '2hr',
+        '2h',
+        # Generic short-term patterns
+        'up or down',  # Hourly directional bets
+        'higher or lower',
+        'updown',
+        # Specific slugs
+        'btc-updown',
+        'eth-updown',
     ]
     
     # Filter out sports markets (no information asymmetry/whale edge)
@@ -296,7 +341,21 @@ def process_signal(signal):
         if not validate_market(market_slug):
             print(f"   ⏭️  Skipping position - Market does not exist or is delisted")
             return None
+        
+        # GROK VALIDATION: Check news context before trading
+        from grok_validator import validate_signal_with_grok
+        grok_result = validate_signal_with_grok(market_question, market_slug, confidence, outcome)
+        
+        if not grok_result['should_trade']:
+            print(f"   🛑 Grok validation failed: {grok_result['reasoning']}")
+            if grok_result['grok_available']:
+                print(f"      Full assessment: {grok_result['full_response'][:200]}...")
+            return None
+        
+        # Update reasoning with Grok insights
         reasoning = format_reasoning(signal)
+        if grok_result['grok_available']:
+            reasoning = f"{reasoning} | Grok: {grok_result['reasoning']}"
         position_id = open_position(signal_id, signal_type, confidence, market_slug,
                                     market_question, outcome, direction, price, reasoning)
         
