@@ -1,107 +1,164 @@
 /**
- * Simple JSON File-Based Trade Database
+ * SQLite Trade Database
  * Stores trades and performance metrics persistently
  */
 
-import * as fs from 'fs';
+import Database from 'better-sqlite3';
 import * as path from 'path';
 import type { TradeFeedTrade } from '../api/trade_feed';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
-const TRADES_FILE = path.join(DATA_DIR, 'trades.json');
-const MAX_TRADES = 50000; // Keep last 50k trades
+const TRADES_DB_PATH = path.join(DATA_DIR, 'trades.db');
 
-// Ensure data directory exists
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+let db: Database.Database | null = null;
+
+function getDb(): Database.Database {
+  if (!db) {
+    console.log(`[Trade DB] Connecting to: ${TRADES_DB_PATH}`);
+    try {
+      db = new Database(TRADES_DB_PATH, { readonly: true });
+      console.log(`[Trade DB] Connected successfully`);
+    } catch (error) {
+      console.error(`[Trade DB] Failed to connect:`, error);
+      throw error;
+    }
   }
+  return db;
 }
 
-// Read trades from file
+// Convert database row to TradeFeedTrade
+function rowToTrade(row: any): TradeFeedTrade {
+  return {
+    id: row.id,
+    trader: row.trader,
+    marketId: row.marketId,
+    marketSlug: row.marketSlug || '',
+    marketQuestion: row.marketQuestion || '',
+    marketCategory: row.marketCategory || null,
+    outcome: row.outcome || '',
+    side: row.side,
+    price: row.price,
+    sizeUsd: row.sizeUsd,
+    timestamp: row.timestamp,
+    conditionId: null,
+    tokenId: null,
+  };
+}
+
+// Read trades from database
 export function readTrades(): TradeFeedTrade[] {
   try {
-    if (!fs.existsSync(TRADES_FILE)) {
-      return [];
-    }
-    const data = fs.readFileSync(TRADES_FILE, 'utf-8');
-    return JSON.parse(data);
+    const dbConn = getDb();
+    const rows = dbConn.prepare('SELECT * FROM trades ORDER BY timestamp DESC').all();
+    return rows.map(rowToTrade);
   } catch (error) {
-    console.error('Failed to read trades file:', error);
+    console.error('Failed to read trades from database:', error);
     return [];
   }
 }
 
-// Write trades to file
-function writeTrades(trades: TradeFeedTrade[]): void {
-  try {
-    ensureDataDir();
-    fs.writeFileSync(TRADES_FILE, JSON.stringify(trades, null, 2));
-  } catch (error) {
-    console.error('Failed to write trades file:', error);
-  }
-}
-
-// Store trades (upsert and deduplicate)
-export function storeTrades(newTrades: TradeFeedTrade[]): void {
-  const existing = readTrades();
-  const tradeMap = new Map(existing.map((t) => [t.id, t]));
-  
-  // Add/update new trades
-  for (const trade of newTrades) {
-    tradeMap.set(trade.id, trade);
-  }
-  
-  // Convert back to array, sort by timestamp, limit size
-  const allTrades = Array.from(tradeMap.values())
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, MAX_TRADES);
-  
-  writeTrades(allTrades);
-  console.log(`💾 Stored ${newTrades.length} new trades (${allTrades.length} total in DB)`);
-}
-
 // Get recent trades
 export function getRecentTrades(limit: number = 200, sinceTimestamp?: number): TradeFeedTrade[] {
-  const trades = readTrades();
-  
-  let filtered = trades;
-  if (sinceTimestamp) {
-    filtered = trades.filter((t) => t.timestamp >= sinceTimestamp);
+  try {
+    const dbConn = getDb();
+    
+    let query = 'SELECT * FROM trades';
+    const params: any[] = [];
+    
+    if (sinceTimestamp) {
+      query += ' WHERE timestamp >= ?';
+      params.push(sinceTimestamp);
+    }
+    
+    query += ' ORDER BY timestamp DESC LIMIT ?';
+    params.push(limit);
+    
+    const rows = dbConn.prepare(query).all(...params);
+    return rows.map(rowToTrade);
+  } catch (error) {
+    console.error('Failed to get recent trades:', error);
+    return [];
   }
-  
-  return filtered.slice(0, limit);
 }
 
 // Get trades for a specific wallet
 export function getWalletTrades(wallet: string, limit: number = 100): TradeFeedTrade[] {
-  const trades = readTrades();
-  return trades
-    .filter((t) => t.trader.toLowerCase() === wallet.toLowerCase())
-    .slice(0, limit);
+  try {
+    const dbConn = getDb();
+    const rows = dbConn.prepare(`
+      SELECT * FROM trades 
+      WHERE LOWER(trader) = LOWER(?)
+      ORDER BY timestamp DESC 
+      LIMIT ?
+    `).all(wallet, limit);
+    return rows.map(rowToTrade);
+  } catch (error) {
+    console.error('Failed to get wallet trades:', error);
+    return [];
+  }
 }
 
 // Get trades for a specific market
 export function getMarketTrades(marketId: string, limit: number = 100): TradeFeedTrade[] {
-  const trades = readTrades();
-  return trades
-    .filter((t) => t.marketId === marketId)
-    .slice(0, limit);
+  try {
+    const dbConn = getDb();
+    const rows = dbConn.prepare(`
+      SELECT * FROM trades 
+      WHERE marketId = ?
+      ORDER BY timestamp DESC 
+      LIMIT ?
+    `).all(marketId, limit);
+    return rows.map(rowToTrade);
+  } catch (error) {
+    console.error('Failed to get market trades:', error);
+    return [];
+  }
 }
 
 // Get database stats
 export function getDatabaseStats() {
-  const trades = readTrades();
-  const uniqueWallets = new Set(trades.map((t) => t.trader.toLowerCase())).size;
-  const uniqueMarkets = new Set(trades.map((t) => t.marketId)).size;
-  const totalVolume = trades.reduce((sum, t) => sum + t.sizeUsd, 0);
-  
-  return {
-    totalTrades: trades.length,
-    uniqueWallets,
-    uniqueMarkets,
-    totalVolume,
-    oldestTrade: trades.length > 0 ? new Date(trades[trades.length - 1].timestamp * 1000) : null,
-    newestTrade: trades.length > 0 ? new Date(trades[0].timestamp * 1000) : null,
-  };
+  try {
+    const dbConn = getDb();
+    
+    const stats = dbConn.prepare(`
+      SELECT 
+        COUNT(*) as totalTrades,
+        COUNT(DISTINCT LOWER(trader)) as uniqueWallets,
+        COUNT(DISTINCT marketId) as uniqueMarkets,
+        SUM(sizeUsd) as totalVolume,
+        MIN(timestamp) as oldestTimestamp,
+        MAX(timestamp) as newestTimestamp
+      FROM trades
+    `).get() as any;
+    
+    return {
+      totalTrades: stats.totalTrades || 0,
+      uniqueWallets: stats.uniqueWallets || 0,
+      uniqueMarkets: stats.uniqueMarkets || 0,
+      totalVolume: stats.totalVolume || 0,
+      oldestTrade: stats.oldestTimestamp ? new Date(stats.oldestTimestamp * 1000) : null,
+      newestTrade: stats.newestTimestamp ? new Date(stats.newestTimestamp * 1000) : null,
+    };
+  } catch (error) {
+    console.error('Failed to get database stats:', error);
+    return {
+      totalTrades: 0,
+      uniqueWallets: 0,
+      uniqueMarkets: 0,
+      totalVolume: 0,
+      oldestTrade: null,
+      newestTrade: null,
+    };
+  }
+}
+
+// Note: storeTrades() removed - only the collector (sqlite_database.ts) writes to trades.db
+// This module is now read-only for dashboard/reporting
+
+// Close database connection
+export function closeDb() {
+  if (db) {
+    db.close();
+    db = null;
+  }
 }
