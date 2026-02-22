@@ -862,7 +862,7 @@ app.get('/', (req, res) => {
     
     function updateSignalsDescription() {
       const desc = document.getElementById('signals-description');
-      desc.textContent = `Showing signals &ge;${viewThreshold}%. Auto-trading signals &ge;${tradeThreshold}%.`;
+      desc.textContent = 'Showing signals >=' + viewThreshold + '%. Auto-trading signals >=' + tradeThreshold + '%.';
     }
     // Toggle collapsible sections
     function toggleSection(sectionId) {
@@ -887,7 +887,7 @@ app.get('/', (req, res) => {
         const data = await response.json();
         
         // Fetch trading signals with dynamic threshold
-        const signalsResponse = await fetch(`/api/trading/signals?minConfidence=${viewThreshold}`);
+        const signalsResponse = await fetch('/api/trading/signals?minConfidence=' + viewThreshold);
         const signalsData = await signalsResponse.json();
         data.tradingSignals = { top_signals: signalsData.signals || [] };
         
@@ -1116,7 +1116,7 @@ app.get('/', (req, res) => {
         document.getElementById('signals-badge').textContent = signals.length;
 
         if (signals.length === 0) {
-          signalsList.innerHTML = `<div class="empty">No signals ≥${viewThreshold}% detected</div>`;
+          signalsList.innerHTML = "<div class=\"empty\">No signals >=" + viewThreshold + "% detected</div>";
         } else {
           let html = '<table><thead><tr><th>Signal Type</th><th>Market</th><th>Direction</th><th>Confidence</th><th>Price</th><th>Status</th></tr></thead><tbody>';
           signals.slice(0, 20).forEach(sig => {
@@ -1128,7 +1128,7 @@ app.get('/', (req, res) => {
               ? '<span style="background:#059669;color:white;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">WILL TRADE</span>'
               : '<span style="background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:4px;font-size:0.75rem;">View Only</span>';
             
-            html += `<tr style="${rowStyle}" class="${sig.confidence >= 85 ? 'highlight' : ''}">`;
+            html += \`<tr style="\${rowStyle}" class="\${sig.confidence >= 85 ? 'highlight' : ''}">\`;
             html += '<td style="font-weight:600;">' + emoji + ' ' + sig.type.replace(/_/g, ' ') + '</td>';
             html += '<td class="market-question">' + sig.market_question + '</td>';
             html += '<td style="font-weight:700;color:' + (sig.signal.includes('BUY') ? '#059669' : '#dc2626') + ';">' + sig.signal + '</td>';
