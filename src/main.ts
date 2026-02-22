@@ -2,6 +2,8 @@ import * as dotenv from 'dotenv';
 import { PolymarketClient } from './api/polymarket_client';
 import { ArbitrageDetector } from './strategies/arbitrage_detector';
 
+// Test commit - Frank 2026-02-22
+// Testing GitHub push access - Frank
 // Load environment variables
 dotenv.config();
 
