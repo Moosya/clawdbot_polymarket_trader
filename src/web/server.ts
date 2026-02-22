@@ -706,8 +706,31 @@ app.get('/', (req, res) => {
         <h2>🎯 Trading Signals</h2>
         <span id="signals-badge" class="badge">0</span>
       </div>
+      
+      <!-- Threshold Controls -->
+      <div style="background:#f9fafb;padding:12px;border-radius:8px;margin-bottom:12px;">
+        <div style="margin-bottom:12px;">
+          <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:0.875rem;font-weight:600;color:#374151;">View Threshold: <span id="view-threshold-value" style="color:#3b82f6;">50%</span></span>
+            <span style="font-size:0.75rem;color:#6b7280;">Show signals &ge; this confidence</span>
+          </label>
+          <input type="range" id="view-threshold" min="50" max="100" value="50" step="5" 
+                 style="width:100%;accent-color:#3b82f6;" 
+                 oninput="updateViewThreshold(this.value)">
+        </div>
+        
+        <div>
+          <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:0.875rem;font-weight:600;color:#374151;">Paper Trade Threshold: <span id="trade-threshold-value" style="color:#059669;">60%</span></span>
+            <span style="font-size:0.75rem;color:#6b7280;">Auto-trade signals &ge; this confidence</span>
+          </label>
+          <input type="range" id="trade-threshold" min="50" max="100" value="60" step="5" 
+                 style="width:100%;accent-color:#059669;" 
+                 oninput="updateTradeThreshold(this.value)">
+        </div>
+      </div>
       <div style="font-size: 0.8em; color: #6b7280; margin-bottom: 8px;">
-        High-confidence trading opportunities. Only signals >= 80% confidence shown.
+        <span id="signals-description">Showing signals 226550%. Auto-trading signals 226560%.</span>
       </div>
       <div id="signals-list" class="panel-content">
         <div class="empty">Loading...</div>
@@ -808,6 +831,39 @@ app.get('/', (req, res) => {
   </div>
 
   <script>
+    // Threshold Management
+    let viewThreshold = parseInt(localStorage.getItem('viewThreshold')) || 50;
+    let tradeThreshold = parseInt(localStorage.getItem('tradeThreshold')) || 60;
+    
+    // Initialize sliders on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('view-threshold').value = viewThreshold;
+      document.getElementById('trade-threshold').value = tradeThreshold;
+      document.getElementById('view-threshold-value').textContent = viewThreshold + '%';
+      document.getElementById('trade-threshold-value').textContent = tradeThreshold + '%';
+      updateSignalsDescription();
+    });
+    
+    function updateViewThreshold(value) {
+      viewThreshold = parseInt(value);
+      localStorage.setItem('viewThreshold', viewThreshold);
+      document.getElementById('view-threshold-value').textContent = viewThreshold + '%';
+      updateSignalsDescription();
+      updateData();  // Refresh data with new threshold
+    }
+    
+    function updateTradeThreshold(value) {
+      tradeThreshold = parseInt(value);
+      localStorage.setItem('tradeThreshold', tradeThreshold);
+      document.getElementById('trade-threshold-value').textContent = tradeThreshold + '%';
+      updateSignalsDescription();
+      updateData();  // Refresh display to show new trade badges
+    }
+    
+    function updateSignalsDescription() {
+      const desc = document.getElementById('signals-description');
+      desc.textContent = `Showing signals &ge;${viewThreshold}%. Auto-trading signals &ge;${tradeThreshold}%.`;
+    }
     // Toggle collapsible sections
     function toggleSection(sectionId) {
       const section = document.getElementById(sectionId);
@@ -829,6 +885,11 @@ app.get('/', (req, res) => {
       try {
         const response = await fetch('/api/signals');
         const data = await response.json();
+        
+        // Fetch trading signals with dynamic threshold
+        const signalsResponse = await fetch(`/api/trading/signals?minConfidence=${viewThreshold}`);
+        const signalsData = await signalsResponse.json();
+        data.tradingSignals = { top_signals: signalsData.signals || [] };
         
         // Update counts
         document.getElementById('arbitrage-count').textContent = data.arbitrage.length;
@@ -1055,21 +1116,29 @@ app.get('/', (req, res) => {
         document.getElementById('signals-badge').textContent = signals.length;
 
         if (signals.length === 0) {
-          signalsList.innerHTML = '<div class="empty">No high-confidence signals detected</div>';
+          signalsList.innerHTML = `<div class="empty">No signals ≥${viewThreshold}% detected</div>`;
         } else {
-          let html = '<table><thead><tr><th>Signal Type</th><th>Market</th><th>Direction</th><th>Confidence</th><th>Price</th></tr></thead><tbody>';
-          signals.slice(0, 10).forEach(sig => {
+          let html = '<table><thead><tr><th>Signal Type</th><th>Market</th><th>Direction</th><th>Confidence</th><th>Price</th><th>Status</th></tr></thead><tbody>';
+          signals.slice(0, 20).forEach(sig => {
             const emoji = sig.confidence >= 90 ? '🔥' : sig.confidence >= 80 ? '⚡' : '📊';
             const confColor = sig.confidence >= 90 ? '#059669' : sig.confidence >= 80 ? '#d97706' : '#6b7280';
-            html += '<tr class="' + (sig.confidence >= 85 ? 'highlight' : '') + '">';
+            const willTrade = sig.confidence >= tradeThreshold;
+            const rowStyle = willTrade ? 'background:#f0fdf4;border-left:3px solid #059669;' : '';
+            const statusBadge = willTrade 
+              ? '<span style="background:#059669;color:white;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">WILL TRADE</span>'
+              : '<span style="background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:4px;font-size:0.75rem;">View Only</span>';
+            
+            html += `<tr style="${rowStyle}" class="${sig.confidence >= 85 ? 'highlight' : ''}">`;
             html += '<td style="font-weight:600;">' + emoji + ' ' + sig.type.replace(/_/g, ' ') + '</td>';
             html += '<td class="market-question">' + sig.market_question + '</td>';
             html += '<td style="font-weight:700;color:' + (sig.signal.includes('BUY') ? '#059669' : '#dc2626') + ';">' + sig.signal + '</td>';
             html += '<td style="color:' + confColor + ';font-weight:700;">' + sig.confidence + '%</td>';
-            html += '<td class="price">$' + sig.price.toFixed(2) + '</td></tr>';
+            html += '<td class="price">$' + sig.price.toFixed(2) + '</td>';
+            html += '<td>' + statusBadge + '</td></tr>';
           });
           signalsList.innerHTML = html + '</tbody></table>';
         }
+
 
         // Update paper trading
         const paperTrading = document.getElementById('paper-trading');
