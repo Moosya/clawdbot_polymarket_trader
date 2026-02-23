@@ -83,9 +83,17 @@ function getDb(): Database.Database {
 export function getRecentSignals(minConfidence: number = 0, limit: number = 50): Signal[] {
   const dbConn = getDb();
   const stmt = dbConn.prepare(`
-    SELECT * FROM signals 
-    WHERE confidence >= ? 
-    ORDER BY timestamp DESC 
+    SELECT s.* FROM signals s
+    INNER JOIN (
+      SELECT market_slug, outcome, type, MAX(timestamp) as max_ts
+      FROM signals
+      WHERE confidence >= ?
+      GROUP BY market_slug, outcome, type
+    ) latest ON s.market_slug = latest.market_slug 
+      AND s.outcome = latest.outcome 
+      AND s.type = latest.type 
+      AND s.timestamp = latest.max_ts
+    ORDER BY s.timestamp DESC 
     LIMIT ?
   `);
   

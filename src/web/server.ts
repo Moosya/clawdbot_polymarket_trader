@@ -1116,8 +1116,8 @@ app.get('/', (req, res) => {
         if (signals.length === 0) {
           signalsList.innerHTML = '<div class="empty">No signals >=' + viewThreshold + '% detected</div>';
         } else {
-          let html = '<table><thead><tr><th>Signal Type</th><th>Market</th><th>Direction</th><th>Confidence</th><th>Price</th><th>Status</th></tr></thead><tbody>';
-          signals.slice(0, 20).forEach(sig => {
+          let html = '<table><thead><tr><th>Signal Type</th><th>Market</th><th>Direction</th><th>Confidence</th><th>Price</th><th>Status</th><th>Details</th></tr></thead><tbody>';
+          signals.slice(0, 20).forEach((sig, idx) => {
             const emoji = sig.confidence >= 90 ? '🔥' : sig.confidence >= 80 ? '⚡' : '📊';
             const confColor = sig.confidence >= 90 ? '#059669' : sig.confidence >= 80 ? '#d97706' : '#6b7280';
             const willTrade = sig.confidence >= tradeThreshold;
@@ -1126,17 +1126,30 @@ app.get('/', (req, res) => {
               ? '<span style="background:#059669;color:white;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">WILL TRADE</span>'
               : '<span style="background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:4px;font-size:0.75rem;">View Only</span>';
             
-            html += \`<tr style="\${rowStyle}" class="\${sig.confidence >= 85 ? 'highlight' : ''}">\`;
+            // Parse details JSON for display
+            let detailsText = 'No details';
+            try {
+              if (sig.details) {
+                const details = typeof sig.details === 'string' ? JSON.parse(sig.details) : sig.details;
+                detailsText = JSON.stringify(details, null, 2);
+              }
+            } catch (e) {
+              detailsText = sig.details || 'No details';
+            }
+            
+            html += `<tr style="${rowStyle}" class="${sig.confidence >= 85 ? 'highlight' : ''}">`;
             html += '<td style="font-weight:600;">' + emoji + ' ' + sig.type.replace(/_/g, ' ') + '</td>';
             html += '<td class="market-question">' + sig.market_question + '</td>';
             html += '<td style="font-weight:700;color:' + (sig.direction.includes('BUY') ? '#059669' : '#dc2626') + ';">' + sig.direction + '</td>';
             html += '<td style="color:' + confColor + ';font-weight:700;">' + sig.confidence + '%</td>';
             html += '<td class="price">$' + sig.price.toFixed(2) + '</td>';
-            html += '<td>' + statusBadge + '</td></tr>';
+            html += '<td>' + statusBadge + '</td>';
+            html += '<td><button data-toggle-id="sig-detail-' + idx + '" class="btn-toggle-signal-detail" style="background:#3b82f6;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;">📊</button></td>';
+            html += '</tr>';
+            html += '<tr id="sig-detail-' + idx + '" style="display:none;"><td colspan="7" style="background:#f9fafb;padding:0.75rem;font-size:0.75rem;color:#374151;font-family:monospace;white-space:pre-wrap;border-left:3px solid #3b82f6;">' + detailsText + '</td></tr>';
           });
           signalsList.innerHTML = html + '</tbody></table>';
         }
-
 
         // Update paper trading
         const paperTrading = document.getElementById('paper-trading');
@@ -1218,6 +1231,11 @@ app.get('/', (req, res) => {
         const targetId = e.target.getAttribute('data-toggle-id');
         const el = document.getElementById(targetId);
         if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      if (e.target.classList.contains('btn-toggle-signal-detail')) {
+        const targetId = e.target.getAttribute('data-toggle-id');
+        const el = document.getElementById(targetId);
+        if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      }
       }
     });
     

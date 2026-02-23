@@ -7,6 +7,9 @@ Finds when multiple whales bet on the same market/outcome within a short timefra
 import sqlite3
 import json
 from datetime import datetime, timedelta
+import sys
+sys.path.insert(0, "/workspace/polymarket_src/scripts")
+from market_filters import should_skip_market
 
 # Configuration
 WHALE_THRESHOLD = 2000  # Minimum trade size to be considered a whale
@@ -71,6 +74,11 @@ def detect_clusters(lookback_hours=2):
             'last_trade': datetime.fromtimestamp(last_trade).strftime('%Y-%m-%d %H:%M:%S'),
             'confidence': calculate_confidence(whale_count, total_size, time_span_minutes)
         }
+        # Filter out sports and other unwanted markets
+        should_skip, skip_reason = should_skip_market(market_question, market_slug)
+        if should_skip:
+            continue
+
         
         signals.append(signal)
     

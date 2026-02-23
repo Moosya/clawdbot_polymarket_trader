@@ -10,6 +10,9 @@ Theory: If market is at 0.70 YES (crowd bullish) but whales buying NO,
 import sqlite3
 from datetime import datetime, timedelta
 from collections import defaultdict
+import sys
+sys.path.insert(0, "/workspace/polymarket_src/scripts")
+from market_filters import should_skip_market
 
 DB_PATH = '/workspace/polymarket_runtime/data/trades.db'
 WHALE_THRESHOLD = 3000  # Higher threshold for divergence signals
@@ -125,6 +128,11 @@ def detect_divergence(lookback_hours=LOOKBACK_HOURS):
                     'confidence': confidence,
                     'timestamp': datetime.now().isoformat()
                 }
+                # Filter out sports and other unwanted markets
+                should_skip, skip_reason = should_skip_market(data['question'], slug)
+                if should_skip:
+                    continue
+
                 signals.append(signal)
     
     # Sort by confidence

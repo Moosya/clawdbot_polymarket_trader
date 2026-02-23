@@ -37,8 +37,15 @@ def should_skip_market(market_question, market_slug):
     
     # Filter 3: Sports markets (no information edge)
     sports_patterns = [
-        'nfl-', 'nba-', 'mlb-', 'nhl-', 'ufc-', 'fifa-', 'super-bowl',
-        'world-cup', 'olympics', 'premier-league', 'champions-league'
+        # American sports
+        'nfl-', 'nba-', 'mlb-', 'nhl-', 'ufc-', 'mma-', 'super-bowl',
+        # Soccer/Football leagues
+        'epl-', 'lal-', 'ser-', 'bun-', 'lig-', 'ligue-', 
+        'cdr-', 'elc-', 'ucl-', 'uel-', 'ecl-',
+        'premier-league', 'champions-league', 'europa-league',
+        'fa-cup', 'copa-', 'carabao',
+        # General sports
+        'fifa-', 'world-cup', 'olympics', '-vs-', 'win on'
     ]
     
     if any(pattern in slug_lower for pattern in sports_patterns):
