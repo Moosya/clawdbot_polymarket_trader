@@ -1129,7 +1129,7 @@ app.get('/', (req, res) => {
             html += \`<tr style="\${rowStyle}" class="\${sig.confidence >= 85 ? 'highlight' : ''}">\`;
             html += '<td style="font-weight:600;">' + emoji + ' ' + sig.type.replace(/_/g, ' ') + '</td>';
             html += '<td class="market-question">' + sig.market_question + '</td>';
-            html += '<td style="font-weight:700;color:' + (sig.signal.includes('BUY') ? '#059669' : '#dc2626') + ';">' + sig.signal + '</td>';
+            html += '<td style="font-weight:700;color:' + (sig.direction.includes('BUY') ? '#059669' : '#dc2626') + ';">' + sig.direction + '</td>';
             html += '<td style="color:' + confColor + ';font-weight:700;">' + sig.confidence + '%</td>';
             html += '<td class="price">$' + sig.price.toFixed(2) + '</td>';
             html += '<td>' + statusBadge + '</td></tr>';
