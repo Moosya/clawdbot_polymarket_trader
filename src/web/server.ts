@@ -1193,7 +1193,7 @@ app.get('/', (req, res) => {
             pHTML += '<td class="price">$' + (pos.current_price || pos.entry_price).toFixed(2) + '</td>';
             pHTML += '<td style="color:' + (pnl >= 0 ? '#059669' : '#dc2626') + ';font-weight:700;">$' + pnl.toFixed(0) + '</td>';
             pHTML += '<td style="color:' + daysLeftColor + ';font-weight:700;font-size:0.875rem;">' + daysLeft + '</td>';
-            pHTML += '<td><button onclick="document.getElementById(\'reason-' + idx + '\').style.display=document.getElementById(\'reason-' + idx + '\').style.display===\'none\'?\'block\':\'none\'" style="background:#3b82f6;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;">📊</button></td>';
+            pHTML += '<td><button data-toggle-id="reason-' + idx + '" class="btn-toggle-reason" style="background:#3b82f6;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;">📊</button></td>';
             pHTML += '</tr>';
             pHTML += '<tr id="reason-' + idx + '" style="display:none;"><td colspan="8" style="background:#f9fafb;padding:0.75rem;font-size:0.875rem;color:#4b5563;border-left:3px solid #3b82f6;">' + reasoning + '</td></tr>';
           });
@@ -1211,6 +1211,15 @@ app.get('/', (req, res) => {
     
     // Initial load
     updateData();
+    
+    // Event delegation for toggle buttons
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('btn-toggle-reason')) {
+        const targetId = e.target.getAttribute('data-toggle-id');
+        const el = document.getElementById(targetId);
+        if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      }
+    });
     
     // Auto-refresh every 30 seconds
     setInterval(updateData, 30000);
