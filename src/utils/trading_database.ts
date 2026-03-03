@@ -177,7 +177,8 @@ export function getPortfolioStats(): PortfolioStats {
     }
   }
   
-  const totalTrades = closedStats.total_closed || 0;
+  const closedTrades = closedStats.total_closed || 0;
+  const totalTrades = openCount + closedTrades;  // All positions (open + closed)
   const realizedPnl = closedStats.realized_pnl || 0;
   const wins = closedStats.wins || 0;
   
@@ -185,16 +186,16 @@ export function getPortfolioStats(): PortfolioStats {
   const totalValue = STARTING_PORTFOLIO + realizedPnl + unrealizedPnl;
   const combinedPnl = realizedPnl + unrealizedPnl;
   const roi = combinedPnl / STARTING_PORTFOLIO;
-  const winRate = totalTrades > 0 ? wins / totalTrades : 0;
+  const winRate = closedTrades > 0 ? wins / closedTrades : 0;  // Win rate only for closed
   
   const stats = {
     total_value: totalValue,
     realized_pnl: realizedPnl,
     unrealized_pnl: unrealizedPnl,
     combined_pnl: combinedPnl,
-    total_trades: totalTrades,
+    total_trades: totalTrades,  // Now includes open + closed
     open_positions: openCount,
-    closed_positions: totalTrades,
+    closed_positions: closedTrades,  // Renamed from totalTrades for clarity
     win_rate: winRate,
     roi: roi
   };
