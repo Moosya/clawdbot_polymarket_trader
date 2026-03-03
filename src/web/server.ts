@@ -1169,7 +1169,7 @@ app.get('/', (req, res) => {
         pHTML += '<div style="color:#6b7280;font-size:0.75rem;margin-top:0.25rem;">Realized: $' + realizedPnl.toFixed(0) + ' | Unrealized: $' + unrealizedPnl.toFixed(0) + '</div></div></div>';
         if (positions.length > 0) {
           pHTML += '<table><thead><tr><th style="min-width:300px;">Market</th><th title="BUY = betting price will rise, SELL = betting price will fall">Direction</th><th>Size</th><th>Entry</th><th>Current</th><th>P&L</th><th>Days Left</th><th>Why</th></tr></thead><tbody>';
-          positions.slice(0, 5).forEach((pos, idx) => {
+          positions.forEach((pos, idx) => {
             const pnl = pos.unrealized_pnl || 0;
             const directionExplain = pos.direction === 'BUY' ? 'Betting price will rise' : 'Betting price will fall';
             
