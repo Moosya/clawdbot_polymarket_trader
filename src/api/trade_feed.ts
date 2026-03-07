@@ -12,6 +12,7 @@ export interface TradeFeedTrade {
   timestamp: number;
   marketId: string;
   marketSlug: string;
+  eventSlug: string; // Event slug for correct URLs
   marketQuestion: string;
   marketCategory?: string | null;
   outcome: string;
@@ -42,7 +43,8 @@ export async function getRecentTrades(limit: number = 200): Promise<TradeFeedTra
         id: trade.transactionHash || trade.id || `trade-${trade.timestamp}`,
         timestamp: typeof trade.timestamp === 'number' ? trade.timestamp : Date.parse(trade.timestamp) / 1000,
         marketId: trade.asset || trade.conditionId || trade.condition_id,
-        marketSlug: trade.slug || trade.eventSlug || trade.market_slug || '',
+        marketSlug: trade.slug || trade.market_slug || '',
+        eventSlug: trade.eventSlug || trade.slug || '',  // Event slug for URLs
         marketQuestion: trade.title || trade.question || trade.name || 'Unknown',
         marketCategory: trade.category || trade.marketCategory || null,
         outcome: trade.outcome || trade.name || trade.outcome_name || 'Unknown',

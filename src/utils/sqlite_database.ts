@@ -56,6 +56,7 @@ function initializeSchema() {
         trader TEXT NOT NULL,
         marketId TEXT NOT NULL,
         marketSlug TEXT,
+        eventSlug TEXT,
         marketQuestion TEXT,
         marketCategory TEXT,
         outcome TEXT,
@@ -95,6 +96,7 @@ function initializeSchema() {
         trader TEXT NOT NULL,
         marketId TEXT NOT NULL,
         marketSlug TEXT,
+        eventSlug TEXT,
         marketQuestion TEXT,
         marketCategory TEXT,
         outcome TEXT,
@@ -133,9 +135,9 @@ export function storeTrades(newTrades: TradeFeedTrade[]): void {
   
   const insert = db.prepare(`
     INSERT OR REPLACE INTO trades (
-      id, trader, marketId, marketSlug, marketQuestion, marketCategory, outcome,
+      id, trader, marketId, marketSlug, eventSlug, marketQuestion, marketCategory, outcome,
       side, price, sizeUsd, timestamp, feeRateBps, makerAddress
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const insertMany = db.transaction((trades: TradeFeedTrade[]) => {
@@ -145,6 +147,7 @@ export function storeTrades(newTrades: TradeFeedTrade[]): void {
         trade.trader,
         trade.marketId,
         trade.marketSlug || null,
+        trade.eventSlug || trade.marketSlug || null,  // Event slug for URLs
         trade.marketQuestion || null,
         trade.marketCategory || null,
         trade.outcome || null,
@@ -314,6 +317,7 @@ function rowToTrade(row: any): TradeFeedTrade {
     trader: row.trader,
     marketId: row.marketId,
     marketSlug: row.marketSlug || '',
+    eventSlug: row.eventSlug || row.marketSlug || '',  // Fallback to marketSlug for old data
     marketQuestion: row.marketQuestion || '',
     marketCategory: row.marketCategory || null,
     outcome: row.outcome || '',

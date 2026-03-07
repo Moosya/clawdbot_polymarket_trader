@@ -33,6 +33,7 @@ function rowToTrade(row: any): TradeFeedTrade {
     trader: row.trader,
     marketId: row.marketId,
     marketSlug: row.marketSlug || '',
+    eventSlug: row.eventSlug || row.marketSlug || '',  // Fallback to marketSlug for old data
     marketQuestion: row.marketQuestion || '',
     marketCategory: row.marketCategory || null,
     outcome: row.outcome || '',
