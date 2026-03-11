@@ -43,3 +43,36 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Python scripts workspace
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Credentials and secrets
+.credentials/
+*.pickle
+*.token
+*-token.json
+*-credentials.json
+*.key
+*.pem
+
+# Personal/sensitive data
+memory/*.md
+memory/*.json
+CONTACTS.md
+
+# Runtime/state files
+runtime/
+data/
+*.db-shm
+*.db-wal
+known_markets.json
+*-heartbeat.json
+
+# Test/backup files
+*.backup
+*.bak
+*-backup.*
